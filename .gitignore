@@ -1,0 +1,29 @@
+node_modules
+.pnpm-store
+.cache
+.DS_Store
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# env
+.env
+!.env.example
+
+# build outputs
+dist
+build
+coverage
+
+# prisma
+**/prisma/dev.db
+**/prisma/dev.db-journal
+**/src/generated
+
+# vite
+**/apps/web/dist
+
+
+singbox-config-docs/

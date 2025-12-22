@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm v10+ 默认不执行依赖的 install/postinstall 脚本，需要显式允许。
+# Prisma 需要在 install 阶段下载/准备 engines 才能正常运行 migrate/generate。
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@prisma/engines"
+  - "better-sqlite3"
+  - "esbuild"
+  - "prisma"

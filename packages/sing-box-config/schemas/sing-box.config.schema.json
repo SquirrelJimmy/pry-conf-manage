@@ -1,0 +1,3335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sing-box.config.schema.json",
+  "title": "sing-box 配置 Schema（当前版本 / 去除废弃项）",
+  "description": "基于本仓库 singbox-config-docs 整理：覆盖 sing-box 配置的主要 JSON 结构，并尽量排除文档中标注 Deprecated/Removed 的字段与类型。适用于 UI 表单渲染与基础校验。",
+  "type": "object",
+  "properties": {
+    "log": { "$ref": "#/$defs/Log" },
+    "dns": { "$ref": "#/$defs/DNS" },
+    "ntp": { "$ref": "#/$defs/NTP" },
+    "certificate": { "$ref": "#/$defs/Certificate" },
+    "endpoints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Endpoint" },
+      "default": []
+    },
+    "inbounds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Inbound" },
+      "default": []
+    },
+    "outbounds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Outbound" },
+      "default": []
+    },
+    "route": { "$ref": "#/$defs/Route" },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Service" },
+      "default": []
+    },
+    "experimental": { "$ref": "#/$defs/Experimental" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Duration": {
+      "title": "Duration",
+      "description": "持续时间字符串（sing-box 使用的 duration 格式；常见示例：300ms、5s、10m、1h、1d、7d）。",
+      "type": "string"
+    },
+
+    "HexOrInt": {
+      "title": "HexOrInt",
+      "description": "支持十进制整数或 0x 开头的十六进制字符串。",
+      "anyOf": [
+        { "type": "integer" },
+        { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" }
+      ]
+    },
+
+    "DomainStrategy": {
+      "title": "DomainStrategy",
+      "type": "string",
+      "enum": ["", "prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
+    },
+
+    "NetworkType": {
+      "title": "NetworkType",
+      "type": "string",
+      "enum": ["wifi", "cellular", "ethernet", "other"]
+    },
+
+    "NetworkTypeList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/NetworkType" },
+      "default": []
+    },
+
+    "NetworkTCPUDP": {
+      "title": "NetworkTCPUDP",
+      "type": "string",
+      "enum": ["", "tcp", "udp"],
+      "default": ""
+    },
+
+    "Port": {
+      "title": "Port",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+
+    "StringMap": {
+      "title": "StringMap",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+
+    "ListenFields": {
+      "title": "Listen Fields",
+      "type": "object",
+      "properties": {
+        "listen": { "type": "string" },
+        "listen_port": { "$ref": "#/$defs/Port" },
+        "bind_interface": { "type": "string" },
+        "routing_mark": { "$ref": "#/$defs/HexOrInt" },
+        "reuse_addr": { "type": "boolean", "default": false },
+        "netns": { "type": "string" },
+        "tcp_fast_open": { "type": "boolean", "default": false },
+        "tcp_multi_path": { "type": "boolean", "default": false },
+        "udp_fragment": { "type": "boolean", "default": false },
+        "udp_timeout": { "$ref": "#/$defs/Duration" },
+        "detour": { "type": "string" }
+      }
+    },
+
+    "DomainResolverOptions": {
+      "title": "DomainResolverOptions",
+      "type": "object",
+      "properties": {
+        "server": { "type": "string" },
+        "strategy": { "$ref": "#/$defs/DomainStrategy" },
+        "disable_cache": { "type": "boolean", "default": false },
+        "rewrite_ttl": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "client_subnet": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      },
+      "required": ["server"],
+      "additionalProperties": false
+    },
+
+    "DialFields": {
+      "title": "Dial Fields",
+      "type": "object",
+      "properties": {
+        "detour": { "type": "string" },
+        "bind_interface": { "type": "string" },
+        "inet4_bind_address": { "type": "string" },
+        "inet6_bind_address": { "type": "string" },
+        "routing_mark": { "$ref": "#/$defs/HexOrInt" },
+        "reuse_addr": { "type": "boolean", "default": false },
+        "netns": { "type": "string" },
+        "connect_timeout": { "$ref": "#/$defs/Duration" },
+        "tcp_fast_open": { "type": "boolean", "default": false },
+        "tcp_multi_path": { "type": "boolean", "default": false },
+        "udp_fragment": { "type": "boolean", "default": false },
+        "domain_resolver": {
+          "anyOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/DomainResolverOptions" }
+          ]
+        },
+        "network_strategy": {
+          "type": "string",
+          "enum": ["", "default", "hybrid", "fallback"],
+          "default": ""
+        },
+        "network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "fallback_network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "fallback_delay": { "$ref": "#/$defs/Duration" }
+      }
+    },
+
+    "DNS01Challenge": {
+      "title": "DNS01 Challenge",
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string", "enum": ["alidns", "cloudflare"] }
+      },
+      "oneOf": [
+        {
+          "title": "alidns",
+          "type": "object",
+          "properties": {
+            "provider": { "const": "alidns" },
+            "access_key_id": { "type": "string" },
+            "access_key_secret": { "type": "string" },
+            "region_id": { "type": "string" }
+          },
+          "required": ["provider", "access_key_id", "access_key_secret"],
+          "additionalProperties": false
+        },
+        {
+          "title": "cloudflare",
+          "type": "object",
+          "properties": {
+            "provider": { "const": "cloudflare" },
+            "api_token": { "type": "string" }
+          },
+          "required": ["provider", "api_token"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "TLSInbound": {
+      "title": "TLS (Inbound)",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "server_name": { "type": "string" },
+        "alpn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "min_version": { "type": "string" },
+        "max_version": { "type": "string" },
+        "cipher_suites": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "certificate": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "certificate_path": { "type": "string" },
+        "key": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "key_path": { "type": "string" },
+        "acme": {
+          "type": "object",
+          "properties": {
+            "domain": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "data_directory": { "type": "string" },
+            "default_server_name": { "type": "string" },
+            "email": { "type": "string" },
+            "provider": { "type": "string" },
+            "disable_http_challenge": { "type": "boolean", "default": false },
+            "disable_tls_alpn_challenge": {
+              "type": "boolean",
+              "default": false
+            },
+            "alternative_http_port": { "$ref": "#/$defs/Port" },
+            "alternative_tls_port": { "$ref": "#/$defs/Port" },
+            "external_account": {
+              "type": "object",
+              "properties": {
+                "key_id": { "type": "string" },
+                "mac_key": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "dns01_challenge": { "$ref": "#/$defs/DNS01Challenge" }
+          },
+          "additionalProperties": false
+        },
+        "ech": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "key": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "key_path": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "reality": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "handshake": {
+              "allOf": [
+                { "$ref": "#/$defs/DialFields" },
+                {
+                  "type": "object",
+                  "properties": {
+                    "server": { "type": "string" },
+                    "server_port": { "$ref": "#/$defs/Port" }
+                  },
+                  "required": ["server", "server_port"]
+                }
+              ],
+              "unevaluatedProperties": false
+            },
+            "private_key": { "type": "string" },
+            "short_id": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "max_time_difference": { "$ref": "#/$defs/Duration" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "TLSOutbound": {
+      "title": "TLS (Outbound)",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "disable_sni": { "type": "boolean", "default": false },
+        "server_name": { "type": "string" },
+        "insecure": { "type": "boolean", "default": false },
+        "alpn": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "min_version": { "type": "string" },
+        "max_version": { "type": "string" },
+        "cipher_suites": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "certificate": { "type": "string" },
+        "certificate_path": { "type": "string" },
+        "fragment": { "type": "boolean", "default": false },
+        "fragment_fallback_delay": { "$ref": "#/$defs/Duration" },
+        "record_fragment": { "type": "boolean", "default": false },
+        "ech": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "config": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "config_path": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "utls": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "fingerprint": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "reality": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "public_key": { "type": "string" },
+            "short_id": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "TCPBrutal": {
+      "title": "TCP Brutal",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "up_mbps": { "type": "integer", "minimum": 0 },
+        "down_mbps": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["up_mbps", "down_mbps"],
+      "additionalProperties": false
+    },
+
+    "MultiplexInbound": {
+      "title": "Multiplex (Inbound)",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "padding": { "type": "boolean", "default": false },
+        "brutal": { "$ref": "#/$defs/TCPBrutal" }
+      },
+      "additionalProperties": false
+    },
+
+    "MultiplexOutbound": {
+      "title": "Multiplex (Outbound)",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "protocol": {
+          "type": "string",
+          "enum": ["smux", "yamux", "h2mux"],
+          "default": "h2mux"
+        },
+        "max_connections": { "type": "integer", "minimum": 0, "default": 4 },
+        "min_streams": { "type": "integer", "minimum": 0, "default": 4 },
+        "max_streams": { "type": "integer", "minimum": 0, "default": 0 },
+        "padding": { "type": "boolean", "default": false },
+        "brutal": { "$ref": "#/$defs/TCPBrutal" }
+      },
+      "additionalProperties": false
+    },
+
+    "UDPOverTCP": {
+      "title": "UDP over TCP",
+      "anyOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "version": { "type": "integer", "enum": [1, 2], "default": 2 }
+          },
+          "required": ["enabled"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "V2RayTransport": {
+      "title": "V2Ray Transport",
+      "oneOf": [
+        { "$ref": "#/$defs/V2RayTransportHTTP" },
+        { "$ref": "#/$defs/V2RayTransportWS" },
+        { "$ref": "#/$defs/V2RayTransportQUIC" },
+        { "$ref": "#/$defs/V2RayTransportGRPC" },
+        { "$ref": "#/$defs/V2RayTransportHTTPUpgrade" }
+      ]
+    },
+
+    "V2RayTransportHTTP": {
+      "title": "Transport: http",
+      "type": "object",
+      "properties": {
+        "type": { "const": "http" },
+        "host": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "path": { "type": "string" },
+        "method": { "type": "string" },
+        "headers": { "$ref": "#/$defs/StringMap" },
+        "idle_timeout": { "$ref": "#/$defs/Duration" },
+        "ping_timeout": { "$ref": "#/$defs/Duration" }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+
+    "V2RayTransportWS": {
+      "title": "Transport: ws",
+      "type": "object",
+      "properties": {
+        "type": { "const": "ws" },
+        "path": { "type": "string" },
+        "headers": { "$ref": "#/$defs/StringMap" },
+        "max_early_data": { "type": "integer", "minimum": 0, "default": 0 },
+        "early_data_header_name": { "type": "string" }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+
+    "V2RayTransportQUIC": {
+      "title": "Transport: quic",
+      "type": "object",
+      "properties": {
+        "type": { "const": "quic" }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+
+    "V2RayTransportGRPC": {
+      "title": "Transport: grpc",
+      "type": "object",
+      "properties": {
+        "type": { "const": "grpc" },
+        "service_name": { "type": "string", "default": "TunService" },
+        "idle_timeout": { "$ref": "#/$defs/Duration" },
+        "ping_timeout": { "$ref": "#/$defs/Duration" },
+        "permit_without_stream": { "type": "boolean", "default": false }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+
+    "V2RayTransportHTTPUpgrade": {
+      "title": "Transport: httpupgrade",
+      "type": "object",
+      "properties": {
+        "type": { "const": "httpupgrade" },
+        "host": { "type": "string" },
+        "path": { "type": "string" },
+        "headers": { "$ref": "#/$defs/StringMap" }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+
+    "Log": {
+      "title": "Log",
+      "type": "object",
+      "properties": {
+        "disabled": { "type": "boolean", "default": false },
+        "level": {
+          "type": "string",
+          "enum": ["trace", "debug", "info", "warn", "error", "fatal", "panic"],
+          "default": "info"
+        },
+        "output": { "type": "string" },
+        "timestamp": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+
+    "DNS": {
+      "title": "DNS",
+      "type": "object",
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DnsServer" },
+          "default": []
+        },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DnsRule" },
+          "default": []
+        },
+        "final": { "type": "string" },
+        "strategy": { "$ref": "#/$defs/DomainStrategy" },
+        "disable_cache": { "type": "boolean", "default": false },
+        "disable_expire": { "type": "boolean", "default": false },
+        "independent_cache": { "type": "boolean", "default": false },
+        "cache_capacity": { "type": "integer", "minimum": 0, "default": 0 },
+        "reverse_mapping": { "type": "boolean", "default": false },
+        "client_subnet": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "DnsServer": {
+      "title": "DNS Server",
+      "oneOf": [
+        { "$ref": "#/$defs/DnsServerLocal" },
+        { "$ref": "#/$defs/DnsServerHosts" },
+        { "$ref": "#/$defs/DnsServerTCP" },
+        { "$ref": "#/$defs/DnsServerUDP" },
+        { "$ref": "#/$defs/DnsServerTLS" },
+        { "$ref": "#/$defs/DnsServerQUIC" },
+        { "$ref": "#/$defs/DnsServerHTTPS" },
+        { "$ref": "#/$defs/DnsServerH3" },
+        { "$ref": "#/$defs/DnsServerDHCP" },
+        { "$ref": "#/$defs/DnsServerFakeIP" },
+        { "$ref": "#/$defs/DnsServerTailscale" },
+        { "$ref": "#/$defs/DnsServerResolved" }
+      ]
+    },
+
+    "DnsServerBase": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "local",
+            "hosts",
+            "tcp",
+            "udp",
+            "tls",
+            "quic",
+            "https",
+            "h3",
+            "dhcp",
+            "fakeip",
+            "tailscale",
+            "resolved"
+          ]
+        },
+        "tag": { "type": "string" },
+        "client_subnet": { "type": "string" }
+      },
+      "required": ["type", "tag"]
+    },
+
+    "DnsServerLocal": {
+      "title": "DNS Server: local",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": { "type": { "const": "local" } }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerHosts": {
+      "title": "DNS Server: hosts",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hosts" },
+            "path": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "predefined": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  { "type": "string" },
+                  { "type": "array", "items": { "type": "string" } }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerTCP": {
+      "title": "DNS Server: tcp",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tcp" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 53 }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerUDP": {
+      "title": "DNS Server: udp",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "udp" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 53 }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerTLS": {
+      "title": "DNS Server: tls (DoT)",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tls" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 853 },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerQUIC": {
+      "title": "DNS Server: quic (DoQ)",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "quic" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 853 },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerHTTPS": {
+      "title": "DNS Server: https (DoH)",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "https" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 443 },
+            "path": { "type": "string", "default": "/dns-query" },
+            "headers": { "$ref": "#/$defs/StringMap" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerH3": {
+      "title": "DNS Server: h3 (DoH3)",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "h3" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 443 },
+            "path": { "type": "string", "default": "/dns-query" },
+            "headers": { "$ref": "#/$defs/StringMap" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerDHCP": {
+      "title": "DNS Server: dhcp",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "dhcp" },
+            "interface": { "type": "string" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerFakeIP": {
+      "title": "DNS Server: fakeip",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "fakeip" },
+            "inet4_range": { "type": "string", "default": "198.18.0.0/15" },
+            "inet6_range": { "type": "string", "default": "fc00::/18" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerTailscale": {
+      "title": "DNS Server: tailscale",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tailscale" },
+            "endpoint": { "type": "string" },
+            "accept_default_resolvers": { "type": "boolean", "default": false }
+          },
+          "required": ["endpoint"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsServerResolved": {
+      "title": "DNS Server: resolved",
+      "allOf": [
+        { "$ref": "#/$defs/DnsServerBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "resolved" },
+            "service": { "type": "string" },
+            "accept_default_resolvers": { "type": "boolean", "default": false }
+          },
+          "required": ["service"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsRule": {
+      "title": "DNS Rule",
+      "oneOf": [
+        { "$ref": "#/$defs/DnsRuleRoute" },
+        { "$ref": "#/$defs/DnsRuleRouteOptions" },
+        { "$ref": "#/$defs/DnsRuleReject" },
+        { "$ref": "#/$defs/DnsRulePredefined" },
+        { "$ref": "#/$defs/DnsRuleLogical" }
+      ]
+    },
+
+    "DnsRuleMatch": {
+      "type": "object",
+      "properties": {
+        "inbound": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "ip_version": { "type": "integer", "enum": [4, 6] },
+        "query_type": {
+          "type": "array",
+          "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+          "default": []
+        },
+        "network": { "type": "string", "enum": ["tcp", "udp"] },
+        "auth_user": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "protocol": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_suffix": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_keyword": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_regex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "source_ip_cidr": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "source_ip_is_private": { "type": "boolean" },
+        "source_port": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "source_port_range": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "port": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "port_range": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_name": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_path_regex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "package_name": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "user": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "user_id": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "clash_mode": { "type": "string" },
+        "network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "network_is_expensive": { "type": "boolean" },
+        "network_is_constrained": { "type": "boolean" },
+        "wifi_ssid": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "wifi_bssid": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "rule_set": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "rule_set_ip_cidr_match_source": { "type": "boolean" },
+        "rule_set_ip_cidr_accept_empty": { "type": "boolean" },
+        "ip_cidr": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "ip_is_private": { "type": "boolean" },
+        "ip_accept_any": { "type": "boolean" },
+        "invert": { "type": "boolean", "default": false }
+      }
+    },
+
+    "DnsRuleRoute": {
+      "title": "DNS Rule: route",
+      "allOf": [
+        { "$ref": "#/$defs/DnsRuleMatch" },
+        {
+          "type": "object",
+          "properties": {
+            "action": { "const": "route", "default": "route" },
+            "server": { "type": "string" },
+            "strategy": { "$ref": "#/$defs/DomainStrategy" },
+            "disable_cache": { "type": "boolean", "default": false },
+            "rewrite_ttl": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }]
+            },
+            "client_subnet": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }]
+            }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsRuleRouteOptions": {
+      "title": "DNS Rule: route-options",
+      "allOf": [
+        { "$ref": "#/$defs/DnsRuleMatch" },
+        {
+          "type": "object",
+          "properties": {
+            "action": { "const": "route-options" },
+            "disable_cache": { "type": "boolean", "default": false },
+            "rewrite_ttl": {
+              "anyOf": [{ "type": "integer" }, { "type": "null" }]
+            },
+            "client_subnet": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }]
+            }
+          },
+          "required": ["action"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsRuleReject": {
+      "title": "DNS Rule: reject",
+      "allOf": [
+        { "$ref": "#/$defs/DnsRuleMatch" },
+        {
+          "type": "object",
+          "properties": {
+            "action": { "const": "reject" },
+            "method": {
+              "type": "string",
+              "enum": ["default", "drop"],
+              "default": "default"
+            },
+            "no_drop": { "type": "boolean", "default": false }
+          },
+          "required": ["action"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsRulePredefined": {
+      "title": "DNS Rule: predefined",
+      "allOf": [
+        { "$ref": "#/$defs/DnsRuleMatch" },
+        {
+          "type": "object",
+          "properties": {
+            "action": { "const": "predefined" },
+            "rcode": {
+              "type": "string",
+              "enum": [
+                "",
+                "NOERROR",
+                "FORMERR",
+                "SERVFAIL",
+                "NXDOMAIN",
+                "NOTIMP",
+                "REFUSED"
+              ],
+              "default": "NOERROR"
+            },
+            "answer": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "ns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "extra": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            }
+          },
+          "required": ["action"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "DnsRuleLogical": {
+      "title": "DNS Rule: logical",
+      "type": "object",
+      "properties": {
+        "type": { "const": "logical" },
+        "mode": { "type": "string", "enum": ["and", "or"] },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DnsRule" },
+          "default": []
+        },
+        "invert": { "type": "boolean", "default": false },
+
+        "action": {
+          "type": "string",
+          "enum": ["route", "route-options", "reject", "predefined"]
+        },
+
+        "server": { "type": "string" },
+        "strategy": { "$ref": "#/$defs/DomainStrategy" },
+        "disable_cache": { "type": "boolean" },
+        "rewrite_ttl": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "client_subnet": {
+          "anyOf": [{ "type": "string" }, { "type": "null" }]
+        },
+
+        "method": { "type": "string", "enum": ["default", "drop"] },
+        "no_drop": { "type": "boolean" },
+
+        "rcode": { "type": "string" },
+        "answer": { "type": "array", "items": { "type": "string" } },
+        "ns": { "type": "array", "items": { "type": "string" } },
+        "extra": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["type", "mode", "rules", "action"],
+      "additionalProperties": false
+    },
+
+    "NTP": {
+      "title": "NTP",
+      "allOf": [
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 123 },
+            "interval": { "$ref": "#/$defs/Duration", "default": "30m" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "Certificate": {
+      "title": "Certificate",
+      "type": "object",
+      "properties": {
+        "store": {
+          "type": "string",
+          "enum": ["system", "mozilla", "none"],
+          "default": "system"
+        },
+        "certificate": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "certificate_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "certificate_directory_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "Endpoint": {
+      "title": "Endpoint",
+      "oneOf": [
+        { "$ref": "#/$defs/EndpointWireGuard" },
+        { "$ref": "#/$defs/EndpointTailscale" }
+      ]
+    },
+
+    "EndpointBase": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["wireguard", "tailscale"] },
+        "tag": { "type": "string" }
+      },
+      "required": ["type", "tag"]
+    },
+
+    "EndpointWireGuardPeer": {
+      "type": "object",
+      "properties": {
+        "address": { "type": "string" },
+        "port": { "$ref": "#/$defs/Port" },
+        "public_key": { "type": "string" },
+        "pre_shared_key": { "type": "string" },
+        "allowed_ips": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "persistent_keepalive_interval": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "reserved": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [0, 0, 0]
+        }
+      },
+      "required": ["public_key", "allowed_ips"],
+      "additionalProperties": false
+    },
+
+    "EndpointWireGuard": {
+      "title": "Endpoint: wireguard",
+      "allOf": [
+        { "$ref": "#/$defs/EndpointBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "wireguard" },
+            "system": { "type": "boolean", "default": false },
+            "name": { "type": "string" },
+            "mtu": { "type": "integer", "minimum": 0, "default": 1408 },
+            "address": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "private_key": { "type": "string" },
+            "listen_port": { "$ref": "#/$defs/Port", "default": 10000 },
+            "peers": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/EndpointWireGuardPeer" },
+              "default": []
+            },
+            "udp_timeout": { "$ref": "#/$defs/Duration" },
+            "workers": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["address", "private_key", "peers"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "EndpointTailscale": {
+      "title": "Endpoint: tailscale",
+      "allOf": [
+        { "$ref": "#/$defs/EndpointBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tailscale" },
+            "state_directory": { "type": "string", "default": "tailscale" },
+            "auth_key": { "type": "string" },
+            "control_url": {
+              "type": "string",
+              "default": "https://controlplane.tailscale.com"
+            },
+            "ephemeral": { "type": "boolean", "default": false },
+            "hostname": { "type": "string" },
+            "accept_routes": { "type": "boolean", "default": false },
+            "exit_node": { "type": "string" },
+            "exit_node_allow_lan_access": {
+              "type": "boolean",
+              "default": false
+            },
+            "advertise_routes": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "advertise_exit_node": { "type": "boolean", "default": false },
+            "udp_timeout": { "$ref": "#/$defs/Duration", "default": "5m" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "Inbound": {
+      "title": "Inbound",
+      "oneOf": [
+        { "$ref": "#/$defs/InboundDirect" },
+        { "$ref": "#/$defs/InboundMixed" },
+        { "$ref": "#/$defs/InboundSocks" },
+        { "$ref": "#/$defs/InboundHTTP" },
+        { "$ref": "#/$defs/InboundShadowsocks" },
+        { "$ref": "#/$defs/InboundVMess" },
+        { "$ref": "#/$defs/InboundTrojan" },
+        { "$ref": "#/$defs/InboundNaive" },
+        { "$ref": "#/$defs/InboundHysteria" },
+        { "$ref": "#/$defs/InboundShadowTLS" },
+        { "$ref": "#/$defs/InboundTUIC" },
+        { "$ref": "#/$defs/InboundHysteria2" },
+        { "$ref": "#/$defs/InboundVLESS" },
+        { "$ref": "#/$defs/InboundAnyTLS" },
+        { "$ref": "#/$defs/InboundTun" },
+        { "$ref": "#/$defs/InboundRedirect" },
+        { "$ref": "#/$defs/InboundTProxy" }
+      ]
+    },
+
+    "InboundBase": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "direct",
+            "mixed",
+            "socks",
+            "http",
+            "shadowsocks",
+            "vmess",
+            "trojan",
+            "naive",
+            "hysteria",
+            "shadowtls",
+            "tuic",
+            "hysteria2",
+            "vless",
+            "anytls",
+            "tun",
+            "redirect",
+            "tproxy"
+          ]
+        },
+        "tag": { "type": "string" }
+      },
+      "required": ["type", "tag"]
+    },
+
+    "InboundDirect": {
+      "title": "Inbound: direct",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "direct" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "override_address": { "type": "string" },
+            "override_port": { "$ref": "#/$defs/Port" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundUserPass": {
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["username", "password"],
+      "additionalProperties": false
+    },
+
+    "InboundMixed": {
+      "title": "Inbound: mixed",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "mixed" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundUserPass" },
+              "default": []
+            },
+            "set_system_proxy": { "type": "boolean", "default": false }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundSocks": {
+      "title": "Inbound: socks",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "socks" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundUserPass" },
+              "default": []
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundHTTP": {
+      "title": "Inbound: http",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "http" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundUserPass" },
+              "default": []
+            },
+            "tls": { "$ref": "#/$defs/TLSInbound" },
+            "set_system_proxy": { "type": "boolean", "default": false }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundShadowsocksUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["name", "password"],
+      "additionalProperties": false
+    },
+
+    "InboundShadowsocksDestination": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "server": { "type": "string" },
+        "server_port": { "$ref": "#/$defs/Port" },
+        "password": { "type": "string" }
+      },
+      "required": ["name", "server", "server_port", "password"],
+      "additionalProperties": false
+    },
+
+    "InboundShadowsocks": {
+      "title": "Inbound: shadowsocks",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "shadowsocks" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "method": { "type": "string" },
+            "password": { "type": "string" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundShadowsocksUser" },
+              "default": []
+            },
+            "destinations": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundShadowsocksDestination" },
+              "default": []
+            },
+            "multiplex": { "$ref": "#/$defs/MultiplexInbound" }
+          },
+          "required": ["method", "password"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundVMessUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "uuid": { "type": "string" },
+        "alterId": { "type": "integer", "minimum": 0, "default": 0 }
+      },
+      "required": ["uuid"],
+      "additionalProperties": false
+    },
+
+    "InboundVMess": {
+      "title": "Inbound: vmess",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "vmess" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundVMessUser" },
+              "default": []
+            },
+            "tls": { "$ref": "#/$defs/TLSInbound" },
+            "multiplex": { "$ref": "#/$defs/MultiplexInbound" },
+            "transport": { "$ref": "#/$defs/V2RayTransport" }
+          },
+          "required": ["users"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundTrojanUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["password"],
+      "additionalProperties": false
+    },
+
+    "InboundTrojanFallback": {
+      "type": "object",
+      "properties": {
+        "server": { "type": "string" },
+        "server_port": { "$ref": "#/$defs/Port" }
+      },
+      "required": ["server", "server_port"],
+      "additionalProperties": false
+    },
+
+    "InboundTrojan": {
+      "title": "Inbound: trojan",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "trojan" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundTrojanUser" },
+              "default": []
+            },
+            "tls": { "$ref": "#/$defs/TLSInbound" },
+            "fallback": { "$ref": "#/$defs/InboundTrojanFallback" },
+            "fallback_for_alpn": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/InboundTrojanFallback"
+              }
+            },
+            "multiplex": { "$ref": "#/$defs/MultiplexInbound" },
+            "transport": { "$ref": "#/$defs/V2RayTransport" }
+          },
+          "required": ["users"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundNaiveUser": {
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["username", "password"],
+      "additionalProperties": false
+    },
+
+    "InboundNaive": {
+      "title": "Inbound: naive",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "naive" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundNaiveUser" },
+              "default": []
+            },
+            "tls": { "$ref": "#/$defs/TLSInbound" }
+          },
+          "required": ["users"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundHysteriaUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "auth": { "type": "string" },
+        "auth_str": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "InboundHysteria": {
+      "title": "Inbound: hysteria",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hysteria" },
+            "up": { "type": "string" },
+            "up_mbps": { "type": "integer", "minimum": 0 },
+            "down": { "type": "string" },
+            "down_mbps": { "type": "integer", "minimum": 0 },
+            "obfs": { "type": "string" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundHysteriaUser" },
+              "default": []
+            },
+            "recv_window_conn": { "type": "integer", "minimum": 0 },
+            "recv_window_client": { "type": "integer", "minimum": 0 },
+            "max_conn_client": { "type": "integer", "minimum": 0 },
+            "disable_mtu_discovery": { "type": "boolean", "default": false },
+            "tls": { "$ref": "#/$defs/TLSInbound" }
+          },
+          "required": ["up", "up_mbps", "down", "down_mbps", "tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundShadowTLSHandshake": {
+      "allOf": [
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundShadowTLS": {
+      "title": "Inbound: shadowtls",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "shadowtls" },
+            "version": { "type": "integer", "enum": [1, 2, 3], "default": 1 },
+            "password": { "type": "string" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundTrojanUser" },
+              "default": []
+            },
+            "handshake": { "$ref": "#/$defs/InboundShadowTLSHandshake" },
+            "handshake_for_server_name": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/InboundShadowTLSHandshake"
+              }
+            },
+            "strict_mode": { "type": "boolean", "default": false },
+            "wildcard_sni": {
+              "type": "string",
+              "enum": ["", "off", "authed", "all"],
+              "default": "off"
+            }
+          },
+          "required": ["handshake"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundTUICUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "uuid": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["uuid", "password"],
+      "additionalProperties": false
+    },
+
+    "InboundTUIC": {
+      "title": "Inbound: tuic",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tuic" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundTUICUser" },
+              "default": []
+            },
+            "congestion_control": {
+              "type": "string",
+              "enum": ["cubic", "new_reno", "bbr"],
+              "default": "cubic"
+            },
+            "auth_timeout": { "$ref": "#/$defs/Duration", "default": "3s" },
+            "zero_rtt_handshake": { "type": "boolean", "default": false },
+            "heartbeat": { "$ref": "#/$defs/Duration", "default": "10s" },
+            "tls": { "$ref": "#/$defs/TLSInbound" }
+          },
+          "required": ["tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundHysteria2User": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["password"],
+      "additionalProperties": false
+    },
+
+    "InboundHysteria2Masquerade": {
+      "title": "Hysteria2 masquerade",
+      "anyOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["file", "proxy", "string"] },
+            "directory": { "type": "string" },
+            "url": { "type": "string" },
+            "rewrite_host": { "type": "boolean", "default": false },
+            "status_code": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 599
+            },
+            "headers": { "$ref": "#/$defs/StringMap" },
+            "content": { "type": "string" }
+          },
+          "required": ["type"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "InboundHysteria2": {
+      "title": "Inbound: hysteria2",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hysteria2" },
+            "up_mbps": { "type": "integer", "minimum": 0 },
+            "down_mbps": { "type": "integer", "minimum": 0 },
+            "obfs": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["", "salamander"],
+                  "default": "salamander"
+                },
+                "password": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundHysteria2User" },
+              "default": []
+            },
+            "ignore_client_bandwidth": { "type": "boolean", "default": false },
+            "tls": { "$ref": "#/$defs/TLSInbound" },
+            "masquerade": { "$ref": "#/$defs/InboundHysteria2Masquerade" },
+            "brutal_debug": { "type": "boolean", "default": false }
+          },
+          "required": ["tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundVLESSUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "uuid": { "type": "string" },
+        "flow": { "type": "string", "enum": ["", "xtls-rprx-vision"] }
+      },
+      "required": ["uuid"],
+      "additionalProperties": false
+    },
+
+    "InboundVLESS": {
+      "title": "Inbound: vless",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "vless" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundVLESSUser" },
+              "default": []
+            },
+            "tls": { "$ref": "#/$defs/TLSInbound" },
+            "multiplex": { "$ref": "#/$defs/MultiplexInbound" },
+            "transport": { "$ref": "#/$defs/V2RayTransport" }
+          },
+          "required": ["users"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundAnyTLSUser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "password": { "type": "string" }
+      },
+      "required": ["password"],
+      "additionalProperties": false
+    },
+
+    "InboundAnyTLS": {
+      "title": "Inbound: anytls",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "anytls" },
+            "users": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/InboundAnyTLSUser" },
+              "default": []
+            },
+            "padding_scheme": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "tls": { "$ref": "#/$defs/TLSInbound" }
+          },
+          "required": ["users"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundTunPlatformHttpProxy": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "server": { "type": "string", "default": "127.0.0.1" },
+        "server_port": { "$ref": "#/$defs/Port", "default": 8080 },
+        "bypass_domain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "match_domain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "InboundTun": {
+      "title": "Inbound: tun",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tun" },
+            "interface_name": { "type": "string", "default": "tun0" },
+            "address": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "mtu": { "type": "integer", "minimum": 0, "default": 9000 },
+            "auto_route": { "type": "boolean", "default": true },
+            "iproute2_table_index": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 2022
+            },
+            "iproute2_rule_index": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 9000
+            },
+            "auto_redirect": { "type": "boolean", "default": false },
+            "auto_redirect_input_mark": { "$ref": "#/$defs/HexOrInt" },
+            "auto_redirect_output_mark": { "$ref": "#/$defs/HexOrInt" },
+            "loopback_address": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "strict_route": { "type": "boolean", "default": false },
+            "route_address": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "route_exclude_address": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "route_address_set": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "route_exclude_address_set": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "endpoint_independent_nat": { "type": "boolean", "default": false },
+            "udp_timeout": { "$ref": "#/$defs/Duration", "default": "5m" },
+            "stack": {
+              "type": "string",
+              "enum": ["system", "gvisor", "mixed"],
+              "default": "system"
+            },
+            "include_interface": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "exclude_interface": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "include_uid": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "default": []
+            },
+            "include_uid_range": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "exclude_uid": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "default": []
+            },
+            "exclude_uid_range": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "include_android_user": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "default": []
+            },
+            "include_package": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "exclude_package": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "platform": {
+              "type": "object",
+              "properties": {
+                "http_proxy": { "$ref": "#/$defs/InboundTunPlatformHttpProxy" }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundRedirect": {
+      "title": "Inbound: redirect",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": { "type": { "const": "redirect" } }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "InboundTProxy": {
+      "title": "Inbound: tproxy",
+      "allOf": [
+        { "$ref": "#/$defs/InboundBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tproxy" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "Outbound": {
+      "title": "Outbound",
+      "oneOf": [
+        { "$ref": "#/$defs/OutboundDirect" },
+        { "$ref": "#/$defs/OutboundBlock" },
+        { "$ref": "#/$defs/OutboundSocks" },
+        { "$ref": "#/$defs/OutboundHTTP" },
+        { "$ref": "#/$defs/OutboundShadowsocks" },
+        { "$ref": "#/$defs/OutboundVMess" },
+        { "$ref": "#/$defs/OutboundTrojan" },
+        { "$ref": "#/$defs/OutboundHysteria" },
+        { "$ref": "#/$defs/OutboundVLESS" },
+        { "$ref": "#/$defs/OutboundShadowTLS" },
+        { "$ref": "#/$defs/OutboundTUIC" },
+        { "$ref": "#/$defs/OutboundHysteria2" },
+        { "$ref": "#/$defs/OutboundAnyTLS" },
+        { "$ref": "#/$defs/OutboundTor" },
+        { "$ref": "#/$defs/OutboundSSH" },
+        { "$ref": "#/$defs/OutboundSelector" },
+        { "$ref": "#/$defs/OutboundURLTest" }
+      ]
+    },
+
+    "OutboundBase": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "direct",
+            "block",
+            "socks",
+            "http",
+            "shadowsocks",
+            "vmess",
+            "trojan",
+            "hysteria",
+            "vless",
+            "shadowtls",
+            "tuic",
+            "hysteria2",
+            "anytls",
+            "tor",
+            "ssh",
+            "selector",
+            "urltest"
+          ]
+        },
+        "tag": { "type": "string" }
+      },
+      "required": ["type", "tag"]
+    },
+
+    "OutboundDirect": {
+      "title": "Outbound: direct",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        { "type": "object", "properties": { "type": { "const": "direct" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundBlock": {
+      "title": "Outbound: block",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "type": "object", "properties": { "type": { "const": "block" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundSocks": {
+      "title": "Outbound: socks",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "socks" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "version": {
+              "type": "string",
+              "enum": ["4", "4a", "5"],
+              "default": "5"
+            },
+            "username": { "type": "string" },
+            "password": { "type": "string" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "udp_over_tcp": { "$ref": "#/$defs/UDPOverTCP" }
+          },
+          "required": ["server", "server_port"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundHTTP": {
+      "title": "Outbound: http",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "http" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "username": { "type": "string" },
+            "password": { "type": "string" },
+            "path": { "type": "string" },
+            "headers": { "$ref": "#/$defs/StringMap" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server", "server_port"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundShadowsocks": {
+      "title": "Outbound: shadowsocks",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "shadowsocks" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "method": { "type": "string" },
+            "password": { "type": "string" },
+            "plugin": { "type": "string" },
+            "plugin_opts": { "type": "string" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "udp_over_tcp": { "$ref": "#/$defs/UDPOverTCP" },
+            "multiplex": { "$ref": "#/$defs/MultiplexOutbound" }
+          },
+          "required": ["server", "server_port", "method", "password"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundVMess": {
+      "title": "Outbound: vmess",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "vmess" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "uuid": { "type": "string" },
+            "security": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "none",
+                "zero",
+                "aes-128-gcm",
+                "chacha20-poly1305",
+                "aes-128-ctr"
+              ],
+              "default": "auto"
+            },
+            "alter_id": { "type": "integer", "minimum": 0, "default": 0 },
+            "global_padding": { "type": "boolean", "default": false },
+            "authenticated_length": { "type": "boolean", "default": true },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" },
+            "packet_encoding": {
+              "type": "string",
+              "enum": ["", "packetaddr", "xudp"],
+              "default": ""
+            },
+            "transport": { "$ref": "#/$defs/V2RayTransport" },
+            "multiplex": { "$ref": "#/$defs/MultiplexOutbound" }
+          },
+          "required": ["server", "server_port", "uuid"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundTrojan": {
+      "title": "Outbound: trojan",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "trojan" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "password": { "type": "string" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" },
+            "multiplex": { "$ref": "#/$defs/MultiplexOutbound" },
+            "transport": { "$ref": "#/$defs/V2RayTransport" }
+          },
+          "required": ["server", "server_port", "password"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundHysteria": {
+      "title": "Outbound: hysteria",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hysteria" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "server_ports": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "hop_interval": { "$ref": "#/$defs/Duration" },
+            "up": { "type": "string" },
+            "up_mbps": { "type": "integer", "minimum": 0 },
+            "down": { "type": "string" },
+            "down_mbps": { "type": "integer", "minimum": 0 },
+            "obfs": { "type": "string" },
+            "auth": { "type": "string" },
+            "auth_str": { "type": "string" },
+            "recv_window_conn": { "type": "integer", "minimum": 0 },
+            "recv_window": { "type": "integer", "minimum": 0 },
+            "disable_mtu_discovery": { "type": "boolean", "default": false },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": [
+            "server",
+            "server_port",
+            "up",
+            "up_mbps",
+            "down",
+            "down_mbps",
+            "tls"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundVLESS": {
+      "title": "Outbound: vless",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "vless" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "uuid": { "type": "string" },
+            "flow": { "type": "string", "enum": ["", "xtls-rprx-vision"] },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" },
+            "packet_encoding": {
+              "type": "string",
+              "enum": ["", "packetaddr", "xudp"]
+            },
+            "multiplex": { "$ref": "#/$defs/MultiplexOutbound" },
+            "transport": { "$ref": "#/$defs/V2RayTransport" }
+          },
+          "required": ["server", "server_port", "uuid"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundShadowTLS": {
+      "title": "Outbound: shadowtls",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "shadowtls" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "version": { "type": "integer", "enum": [1, 2, 3], "default": 1 },
+            "password": { "type": "string" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server", "server_port", "tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundTUIC": {
+      "title": "Outbound: tuic",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tuic" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "uuid": { "type": "string" },
+            "password": { "type": "string" },
+            "congestion_control": {
+              "type": "string",
+              "enum": ["cubic", "new_reno", "bbr"],
+              "default": "cubic"
+            },
+            "udp_relay_mode": {
+              "type": "string",
+              "enum": ["native", "quic"],
+              "default": "native"
+            },
+            "udp_over_stream": { "type": "boolean", "default": false },
+            "zero_rtt_handshake": { "type": "boolean", "default": false },
+            "heartbeat": { "$ref": "#/$defs/Duration", "default": "10s" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server", "server_port", "uuid", "password", "tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundHysteria2": {
+      "title": "Outbound: hysteria2",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "hysteria2" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "server_ports": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "hop_interval": { "$ref": "#/$defs/Duration" },
+            "up_mbps": { "type": "integer", "minimum": 0 },
+            "down_mbps": { "type": "integer", "minimum": 0 },
+            "obfs": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["", "salamander"],
+                  "default": "salamander"
+                },
+                "password": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "password": { "type": "string" },
+            "network": { "$ref": "#/$defs/NetworkTCPUDP" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" },
+            "brutal_debug": { "type": "boolean", "default": false }
+          },
+          "required": ["server", "server_port", "tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundAnyTLS": {
+      "title": "Outbound: anytls",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "anytls" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "password": { "type": "string" },
+            "idle_session_check_interval": { "$ref": "#/$defs/Duration" },
+            "idle_session_timeout": { "$ref": "#/$defs/Duration" },
+            "min_idle_session": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server", "server_port", "password", "tls"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundTor": {
+      "title": "Outbound: tor",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "tor" },
+            "executable_path": { "type": "string" },
+            "extra_args": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "data_directory": { "type": "string" },
+            "torrc": { "type": "object", "additionalProperties": true }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundSSH": {
+      "title": "Outbound: ssh",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "ssh" },
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port", "default": 22 },
+            "user": { "type": "string", "default": "root" },
+            "password": { "type": "string" },
+            "private_key": { "type": "string" },
+            "private_key_path": { "type": "string" },
+            "private_key_passphrase": { "type": "string" },
+            "host_key": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "host_key_algorithms": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "client_version": { "type": "string" }
+          },
+          "required": ["server"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundSelector": {
+      "title": "Outbound: selector",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "selector" },
+            "outbounds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "default": { "type": "string" },
+            "interrupt_exist_connections": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": ["outbounds"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "OutboundURLTest": {
+      "title": "Outbound: urltest",
+      "allOf": [
+        { "$ref": "#/$defs/OutboundBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "urltest" },
+            "outbounds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "url": {
+              "type": "string",
+              "default": "https://www.gstatic.com/generate_204"
+            },
+            "interval": { "$ref": "#/$defs/Duration", "default": "3m" },
+            "tolerance": { "type": "integer", "minimum": 0, "default": 50 },
+            "idle_timeout": { "$ref": "#/$defs/Duration", "default": "30m" },
+            "interrupt_exist_connections": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": ["outbounds"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "Route": {
+      "title": "Route",
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RouteRule" },
+          "default": []
+        },
+        "rule_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RuleSet" },
+          "default": []
+        },
+        "final": { "type": "string" },
+        "auto_detect_interface": { "type": "boolean", "default": false },
+        "override_android_vpn": { "type": "boolean", "default": false },
+        "default_interface": { "type": "string" },
+        "default_mark": { "$ref": "#/$defs/HexOrInt" },
+        "default_domain_resolver": {
+          "anyOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/DomainResolverOptions" }
+          ]
+        },
+        "default_network_strategy": {
+          "type": "string",
+          "enum": ["", "default", "hybrid", "fallback"],
+          "default": ""
+        },
+        "default_network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "default_fallback_network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "default_fallback_delay": { "$ref": "#/$defs/Duration" }
+      },
+      "additionalProperties": false
+    },
+
+    "RouteRule": {
+      "title": "Route Rule",
+      "oneOf": [
+        { "$ref": "#/$defs/RouteRuleDefaultRoute" },
+        { "$ref": "#/$defs/RouteRuleDefaultReject" },
+        { "$ref": "#/$defs/RouteRuleDefaultHijackDNS" },
+        { "$ref": "#/$defs/RouteRuleDefaultRouteOptions" },
+        { "$ref": "#/$defs/RouteRuleDefaultSniff" },
+        { "$ref": "#/$defs/RouteRuleDefaultResolve" },
+        { "$ref": "#/$defs/RouteRuleLogicalRoute" },
+        { "$ref": "#/$defs/RouteRuleLogicalReject" },
+        { "$ref": "#/$defs/RouteRuleLogicalHijackDNS" },
+        { "$ref": "#/$defs/RouteRuleLogicalRouteOptions" },
+        { "$ref": "#/$defs/RouteRuleLogicalSniff" },
+        { "$ref": "#/$defs/RouteRuleLogicalResolve" }
+      ]
+    },
+
+    "RouteRuleMatchDefault": {
+      "type": "object",
+      "properties": {
+        "inbound": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "ip_version": { "type": "integer", "enum": [4, 6] },
+        "network": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["tcp", "udp"] },
+          "default": []
+        },
+        "auth_user": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "protocol": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "client": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_suffix": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_keyword": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_regex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "source_ip_cidr": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "source_ip_is_private": { "type": "boolean" },
+        "ip_cidr": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "ip_is_private": { "type": "boolean" },
+        "source_port": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "source_port_range": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "port": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "port_range": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_name": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_path_regex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "package_name": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "user": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "user_id": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "clash_mode": { "type": "string" },
+        "network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "network_is_expensive": { "type": "boolean" },
+        "network_is_constrained": { "type": "boolean" },
+        "wifi_ssid": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "wifi_bssid": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "rule_set": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "rule_set_ip_cidr_match_source": { "type": "boolean" },
+        "invert": { "type": "boolean", "default": false }
+      }
+    },
+
+    "RouteOptionsFields": {
+      "type": "object",
+      "properties": {
+        "override_address": { "type": "string" },
+        "override_port": { "$ref": "#/$defs/Port" },
+        "network_strategy": {
+          "type": "string",
+          "enum": ["", "default", "hybrid", "fallback"],
+          "default": ""
+        },
+        "network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "fallback_network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "fallback_delay": { "$ref": "#/$defs/Duration" },
+        "udp_disable_domain_unmapping": { "type": "boolean", "default": false },
+        "udp_connect": { "type": "boolean", "default": false },
+        "udp_timeout": { "$ref": "#/$defs/Duration" },
+        "tls_fragment": { "type": "boolean", "default": false },
+        "tls_fragment_fallback_delay": { "$ref": "#/$defs/Duration" },
+        "tls_record_fragment": { "type": "string" }
+      }
+    },
+
+    "RouteRuleActionRoute": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "route" },
+        "outbound": { "type": "string" }
+      },
+      "required": ["action", "outbound"]
+    },
+
+    "RouteRuleActionReject": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "reject" },
+        "method": {
+          "type": "string",
+          "enum": ["default", "drop"],
+          "default": "default"
+        },
+        "no_drop": { "type": "boolean", "default": false }
+      },
+      "required": ["action"]
+    },
+
+    "RouteRuleActionHijackDNS": {
+      "type": "object",
+      "properties": { "action": { "const": "hijack-dns" } },
+      "required": ["action"]
+    },
+
+    "RouteRuleActionRouteOptions": {
+      "type": "object",
+      "properties": { "action": { "const": "route-options" } },
+      "required": ["action"]
+    },
+
+    "RouteRuleActionSniff": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "sniff" },
+        "sniffer": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "timeout": { "$ref": "#/$defs/Duration" }
+      },
+      "required": ["action"]
+    },
+
+    "RouteRuleActionResolve": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "resolve" },
+        "server": { "type": "string" },
+        "strategy": { "$ref": "#/$defs/DomainStrategy" },
+        "disable_cache": { "type": "boolean", "default": false },
+        "rewrite_ttl": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "client_subnet": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+      },
+      "required": ["action"]
+    },
+
+    "RouteRuleMatchLogical": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "logical" },
+        "mode": { "type": "string", "enum": ["and", "or"] },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/RouteRule" },
+          "default": []
+        },
+        "invert": { "type": "boolean", "default": false }
+      },
+      "required": ["type", "mode", "rules"]
+    },
+
+    "RouteRuleDefaultRoute": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchDefault" },
+        { "$ref": "#/$defs/RouteRuleActionRoute" },
+        { "$ref": "#/$defs/RouteOptionsFields" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleDefaultReject": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchDefault" },
+        { "$ref": "#/$defs/RouteRuleActionReject" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleDefaultHijackDNS": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchDefault" },
+        { "$ref": "#/$defs/RouteRuleActionHijackDNS" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleDefaultRouteOptions": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchDefault" },
+        { "$ref": "#/$defs/RouteRuleActionRouteOptions" },
+        { "$ref": "#/$defs/RouteOptionsFields" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleDefaultSniff": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchDefault" },
+        { "$ref": "#/$defs/RouteRuleActionSniff" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleDefaultResolve": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchDefault" },
+        { "$ref": "#/$defs/RouteRuleActionResolve" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleLogicalRoute": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchLogical" },
+        { "$ref": "#/$defs/RouteRuleActionRoute" },
+        { "$ref": "#/$defs/RouteOptionsFields" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleLogicalReject": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchLogical" },
+        { "$ref": "#/$defs/RouteRuleActionReject" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleLogicalHijackDNS": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchLogical" },
+        { "$ref": "#/$defs/RouteRuleActionHijackDNS" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleLogicalRouteOptions": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchLogical" },
+        { "$ref": "#/$defs/RouteRuleActionRouteOptions" },
+        { "$ref": "#/$defs/RouteOptionsFields" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleLogicalSniff": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchLogical" },
+        { "$ref": "#/$defs/RouteRuleActionSniff" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RouteRuleLogicalResolve": {
+      "allOf": [
+        { "$ref": "#/$defs/RouteRuleMatchLogical" },
+        { "$ref": "#/$defs/RouteRuleActionResolve" }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "RuleSet": {
+      "title": "rule-set",
+      "oneOf": [
+        { "$ref": "#/$defs/RuleSetInline" },
+        { "$ref": "#/$defs/RuleSetLocal" },
+        { "$ref": "#/$defs/RuleSetRemote" }
+      ]
+    },
+
+    "HeadlessRule": {
+      "title": "Headless Rule",
+      "oneOf": [
+        { "$ref": "#/$defs/HeadlessRuleDefault" },
+        { "$ref": "#/$defs/HeadlessRuleLogical" }
+      ]
+    },
+
+    "HeadlessRuleDefault": {
+      "type": "object",
+      "properties": {
+        "query_type": {
+          "type": "array",
+          "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+          "default": []
+        },
+        "network": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["tcp", "udp"] },
+          "default": []
+        },
+        "domain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_suffix": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_keyword": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "domain_regex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "source_ip_cidr": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "ip_cidr": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "source_port": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "source_port_range": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "port": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "default": []
+        },
+        "port_range": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_name": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "process_path_regex": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "package_name": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "network_type": { "$ref": "#/$defs/NetworkTypeList" },
+        "network_is_expensive": { "type": "boolean" },
+        "network_is_constrained": { "type": "boolean" },
+        "wifi_ssid": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "wifi_bssid": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "invert": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+
+    "HeadlessRuleLogical": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "logical" },
+        "mode": { "type": "string", "enum": ["and", "or"] },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/HeadlessRule" },
+          "default": []
+        },
+        "invert": { "type": "boolean", "default": false }
+      },
+      "required": ["type", "mode", "rules"],
+      "additionalProperties": false
+    },
+
+    "RuleSetInline": {
+      "title": "RuleSet: inline",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["inline"], "default": "inline" },
+        "tag": { "type": "string" },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/HeadlessRule" },
+          "default": []
+        }
+      },
+      "required": ["tag", "rules"],
+      "additionalProperties": false
+    },
+
+    "RuleSetLocal": {
+      "title": "RuleSet: local",
+      "type": "object",
+      "properties": {
+        "type": { "const": "local" },
+        "tag": { "type": "string" },
+        "format": { "type": "string", "enum": ["source", "binary"] },
+        "path": { "type": "string" }
+      },
+      "required": ["type", "tag", "path"],
+      "additionalProperties": false
+    },
+
+    "RuleSetRemote": {
+      "title": "RuleSet: remote",
+      "type": "object",
+      "properties": {
+        "type": { "const": "remote" },
+        "tag": { "type": "string" },
+        "format": { "type": "string", "enum": ["source", "binary"] },
+        "url": { "type": "string" },
+        "download_detour": { "type": "string" },
+        "update_interval": { "$ref": "#/$defs/Duration" }
+      },
+      "required": ["type", "tag", "url"],
+      "additionalProperties": false
+    },
+
+    "Service": {
+      "title": "Service",
+      "oneOf": [
+        { "$ref": "#/$defs/ServiceDERP" },
+        { "$ref": "#/$defs/ServiceResolved" },
+        { "$ref": "#/$defs/ServiceSSMApi" }
+      ]
+    },
+
+    "ServiceBase": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["derp", "resolved", "ssm-api"] },
+        "tag": { "type": "string" }
+      },
+      "required": ["type"]
+    },
+
+    "ServiceDERPVerifyURL": {
+      "title": "DERP verify url",
+      "anyOf": [
+        { "type": "string" },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/DialFields" },
+            {
+              "type": "object",
+              "properties": { "url": { "type": "string" } },
+              "required": ["url"]
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+
+    "ServiceDERPMeshWith": {
+      "title": "DERP mesh_with item",
+      "allOf": [
+        { "$ref": "#/$defs/DialFields" },
+        {
+          "type": "object",
+          "properties": {
+            "server": { "type": "string" },
+            "server_port": { "$ref": "#/$defs/Port" },
+            "host": { "type": "string" },
+            "tls": { "$ref": "#/$defs/TLSOutbound" }
+          },
+          "required": ["server", "server_port"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "ServiceDERPStun": {
+      "title": "DERP stun",
+      "anyOf": [
+        { "$ref": "#/$defs/Port" },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/ListenFields" },
+            {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean", "default": true }
+              },
+              "required": ["enabled"]
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      ]
+    },
+
+    "ServiceDERP": {
+      "title": "Service: derp",
+      "allOf": [
+        { "$ref": "#/$defs/ServiceBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "derp" },
+            "tag": { "type": "string" },
+            "tls": { "$ref": "#/$defs/TLSInbound" },
+            "config_path": { "type": "string" },
+            "verify_client_endpoint": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "verify_client_url": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/ServiceDERPVerifyURL" },
+              "default": []
+            },
+            "home": { "type": "string" },
+            "mesh_with": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/ServiceDERPMeshWith" },
+              "default": []
+            },
+            "mesh_psk": { "type": "string" },
+            "mesh_psk_file": { "type": "string" },
+            "stun": { "$ref": "#/$defs/ServiceDERPStun" }
+          },
+          "required": ["config_path"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "ServiceResolved": {
+      "title": "Service: resolved",
+      "allOf": [
+        { "$ref": "#/$defs/ServiceBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "resolved" },
+            "tag": { "type": "string" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "ServiceSSMApi": {
+      "title": "Service: ssm-api",
+      "allOf": [
+        { "$ref": "#/$defs/ServiceBase" },
+        { "$ref": "#/$defs/ListenFields" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "ssm-api" },
+            "tag": { "type": "string" },
+            "servers": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "cache_path": { "type": "string" },
+            "tls": { "$ref": "#/$defs/TLSInbound" }
+          },
+          "required": ["servers"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "Experimental": {
+      "title": "Experimental",
+      "type": "object",
+      "properties": {
+        "cache_file": { "$ref": "#/$defs/CacheFile" },
+        "clash_api": { "$ref": "#/$defs/ClashApi" },
+        "v2ray_api": { "$ref": "#/$defs/V2RayApi" }
+      },
+      "additionalProperties": false
+    },
+
+    "CacheFile": {
+      "title": "Cache File",
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "path": { "type": "string", "default": "cache.db" },
+        "cache_id": { "type": "string" },
+        "store_fakeip": { "type": "boolean", "default": false },
+        "store_rdrc": { "type": "boolean", "default": false },
+        "rdrc_timeout": { "$ref": "#/$defs/Duration", "default": "7d" }
+      },
+      "additionalProperties": false
+    },
+
+    "ClashApi": {
+      "title": "Clash API",
+      "type": "object",
+      "properties": {
+        "external_controller": { "type": "string" },
+        "external_ui": { "type": "string" },
+        "external_ui_download_url": { "type": "string" },
+        "external_ui_download_detour": { "type": "string" },
+        "secret": { "type": "string" },
+        "default_mode": { "type": "string" },
+        "access_control_allow_origin": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "access_control_allow_private_network": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "V2RayApi": {
+      "title": "V2Ray API",
+      "type": "object",
+      "properties": {
+        "listen": { "type": "string" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "inbounds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "outbounds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "users": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

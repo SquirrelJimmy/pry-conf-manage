@@ -1,0 +1,28 @@
+{
+  "name": "pry-conf-manage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "pnpm monorepo: NestJS + Prisma + SQLite + React",
+  "packageManager": "pnpm@10.26.1",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --stream dev",
+    "dev:server": "pnpm -C apps/server dev",
+    "dev:web": "pnpm -C apps/web dev",
+    "build": "pnpm -r build",
+    "build:server": "pnpm -C apps/server build",
+    "build:web": "pnpm -C apps/web build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "prisma:generate": "pnpm -C apps/server prisma generate",
+    "prisma:migrate": "pnpm -C apps/server prisma migrate dev --name init",
+    "db:setup": "pnpm prisma:migrate && pnpm prisma:generate",
+    "docs:sing-box": "node scripts/fetch-sing-box-docs.mjs --out .cache/singbox-config-docs",
+    "schemas:sync:sing-box": "node scripts/fetch-sing-box-docs.mjs --only-schemas --out .cache/singbox-config-docs --extract-schemas-to packages/sing-box-config/schemas"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

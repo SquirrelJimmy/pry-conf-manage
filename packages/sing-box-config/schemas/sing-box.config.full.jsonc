@@ -1,0 +1,1402 @@
+// sing-box 配置参考（字段全集 + 模板）
+// -----------------------------------------------------------------------------
+// 来源：本仓库 `singbox-config-docs/`（仅整理“当前版本”仍有效的字段/结构）
+// 说明：
+// - 本文件用于“查字段/做 UI 表单/复制模板”，不是一份可直接运行的配置。
+// - 文档中标注 Deprecated / Removed 的字段与类型已尽量剔除。
+// - `... // Dial Fields`、`... // Listen Fields` 等通用字段见文件末尾模板区。
+// -----------------------------------------------------------------------------
+{
+  "log": {
+    "disabled": false, // boolean：禁用日志输出
+    "level": "info", // "trace" | "debug" | "info" | "warn" | "error" | "fatal" | "panic"
+    "output": "", // string：日志文件路径；非空时将不再输出到控制台
+    "timestamp": true // boolean：每行附加时间戳
+  },
+
+  "dns": {
+    "servers": [
+      // ---------------------------------------------------------------------
+      // DNS Server（推荐使用显式 type；legacy（type 为空）已弃用，未收录）
+      // ---------------------------------------------------------------------
+
+      // --- local -----------------------------------------------------------
+      // {
+      //   "type": "local", // "local"
+      //   "tag": "local", // string：DNS server tag
+      //
+      //   "client_subnet": "", // string：可覆盖 dns.client_subnet（文档索引中提到）
+      //   ... // Dial Fields
+      // }
+
+      // --- hosts -----------------------------------------------------------
+      // {
+      //   "type": "hosts",
+      //   "tag": "hosts",
+      //
+      //   "path": [], // string[]：hosts 文件路径列表（默认 /etc/hosts / Windows hosts）
+      //   "predefined": {}, // Record<string, string | string[]>：预置 hosts
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- tcp -------------------------------------------------------------
+      // {
+      //   "type": "tcp",
+      //   "tag": "tcp",
+      //
+      //   "server": "1.1.1.1", // string：必填
+      //   "server_port": 53, // number：默认 53
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- udp -------------------------------------------------------------
+      // {
+      //   "type": "udp",
+      //   "tag": "udp",
+      //
+      //   "server": "1.1.1.1", // string：必填
+      //   "server_port": 53, // number：默认 53
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- tls (DoT) -------------------------------------------------------
+      // {
+      //   "type": "tls",
+      //   "tag": "dot",
+      //
+      //   "server": "1.1.1.1", // string：必填
+      //   "server_port": 853, // number：默认 853
+      //   "tls": {}, // TLS Outbound
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- quic (DoQ) ------------------------------------------------------
+      // {
+      //   "type": "quic",
+      //   "tag": "doq",
+      //
+      //   "server": "1.1.1.1", // string：必填
+      //   "server_port": 853, // number：默认 853
+      //   "tls": {}, // TLS Outbound
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- https (DoH) -----------------------------------------------------
+      // {
+      //   "type": "https",
+      //   "tag": "doh",
+      //
+      //   "server": "dns.google", // string：必填（域名场景需配置 Dial Fields 的 domain_resolver）
+      //   "server_port": 443, // number：默认 443
+      //   "path": "/dns-query", // string：默认 /dns-query
+      //   "headers": {}, // Record<string, string>
+      //   "tls": {}, // TLS Outbound
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- h3 (DoH3) -------------------------------------------------------
+      // {
+      //   "type": "h3",
+      //   "tag": "doh3",
+      //
+      //   "server": "dns.google", // string：必填
+      //   "server_port": 443, // number：默认 443
+      //   "path": "/dns-query", // string
+      //   "headers": {}, // Record<string, string>
+      //   "tls": {}, // TLS Outbound
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- dhcp ------------------------------------------------------------
+      // {
+      //   "type": "dhcp",
+      //   "tag": "dhcp",
+      //
+      //   "interface": "", // string：网卡名；默认使用系统默认接口
+      //
+      //   "client_subnet": "",
+      //   ... // Dial Fields
+      // }
+
+      // --- fakeip ----------------------------------------------------------
+      // {
+      //   "type": "fakeip",
+      //   "tag": "fakeip",
+      //
+      //   "inet4_range": "198.18.0.0/15", // string：FakeIP IPv4 段
+      //   "inet6_range": "fc00::/18", // string：FakeIP IPv6 段
+      //
+      //   "client_subnet": ""
+      // }
+
+      // --- tailscale -------------------------------------------------------
+      // {
+      //   "type": "tailscale",
+      //   "tag": "ts",
+      //
+      //   "endpoint": "ts-ep", // string：必填，Tailscale Endpoint tag
+      //   "accept_default_resolvers": false, // boolean
+      //
+      //   "client_subnet": ""
+      // }
+
+      // --- resolved --------------------------------------------------------
+      // {
+      //   "type": "resolved",
+      //   "tag": "resolved",
+      //
+      //   "service": "resolved", // string：必填，Resolved Service tag
+      //   "accept_default_resolvers": false, // boolean
+      //
+      //   "client_subnet": ""
+      // }
+    ],
+
+    "rules": [
+      // ---------------------------------------------------------------------
+      // DNS Rule
+      // - 匹配字段 + 动作字段位于同一层级（action = route/route-options/reject/predefined）
+      // - 已移除：geoip/geosite/source_geoip 等已废弃并在 1.12 移除的条目
+      // - 已忽略：`outbound`（DNS 规则的 match 项，1.12 起废弃，1.14 移除）
+      // ---------------------------------------------------------------------
+
+      // --- route (default) -------------------------------------------------
+      // {
+      //   "inbound": ["mixed-in"], // string[]
+      //   "ip_version": 6, // 4 | 6
+      //   "query_type": ["A", "HTTPS", 32768], // (string|number)[]
+      //   "network": "tcp", // "tcp" | "udp"
+      //   "auth_user": ["usera", "userb"], // string[]
+      //   "protocol": ["tls", "http", "quic"], // string[]
+      //   "domain": ["test.com"], // string[]
+      //   "domain_suffix": [".cn"], // string[]
+      //   "domain_keyword": ["test"], // string[]
+      //   "domain_regex": ["^stun\\\\..+"], // string[]
+      //   "source_ip_cidr": ["10.0.0.0/24", "192.168.0.1"], // string[]
+      //   "source_ip_is_private": false, // boolean
+      //   "source_port": [12345], // number[]
+      //   "source_port_range": ["1000:2000", ":3000", "4000:"], // string[]
+      //   "port": [53], // number[]
+      //   "port_range": ["1000:2000"], // string[]
+      //   "process_name": ["curl"], // string[]
+      //   "process_path": ["/usr/bin/curl"], // string[]
+      //   "process_path_regex": ["^/usr/bin/.+"], // string[]
+      //   "package_name": ["com.termux"], // string[]
+      //   "user": ["sekai"], // string[]
+      //   "user_id": [1000], // number[]
+      //   "clash_mode": "direct", // string
+      //   "network_type": ["wifi"], // string[]
+      //   "network_is_expensive": false, // boolean
+      //   "network_is_constrained": false, // boolean
+      //   "wifi_ssid": ["My WIFI"], // string[]
+      //   "wifi_bssid": ["00:00:00:00:00:00"], // string[]
+      //   "rule_set": ["geoip-cn", "geosite-cn"], // string[]
+      //   "rule_set_ip_cidr_match_source": false, // boolean
+      //   "rule_set_ip_cidr_accept_empty": false, // boolean（地址过滤相关）
+      //   "ip_cidr": ["1.1.1.1/32"], // string[]（地址过滤：DNS 应答 IP）
+      //   "ip_is_private": false, // boolean（地址过滤：DNS 应答 IP）
+      //   "ip_accept_any": false, // boolean（地址过滤：匹配任意 IP）
+      //   "invert": false, // boolean
+      //
+      //   "action": "route", // "route"（默认）
+      //   "server": "local", // string：必填，DNS server tag
+      //   "strategy": "", // "" | "prefer_ipv4" | "prefer_ipv6" | "ipv4_only" | "ipv6_only"
+      //   "disable_cache": false, // boolean
+      //   "rewrite_ttl": null, // number|null
+      //   "client_subnet": null // string|null
+      // }
+
+      // --- route-options ---------------------------------------------------
+      // {
+      //   "domain_suffix": [".example.com"],
+      //   "invert": false,
+      //
+      //   "action": "route-options",
+      //   "disable_cache": false,
+      //   "rewrite_ttl": null,
+      //   "client_subnet": null
+      // }
+
+      // --- reject ----------------------------------------------------------
+      // {
+      //   "domain_suffix": [".example.com"],
+      //   "invert": false,
+      //
+      //   "action": "reject",
+      //   "method": "default", // "default" | "drop"
+      //   "no_drop": false // boolean
+      // }
+
+      // --- predefined ------------------------------------------------------
+      // {
+      //   "domain": ["localhost"],
+      //
+      //   "action": "predefined",
+      //   "rcode": "NOERROR", // "NOERROR" | "FORMERR" | "SERVFAIL" | "NXDOMAIN" | "NOTIMP" | "REFUSED"
+      //   "answer": ["localhost. IN A 127.0.0.1"], // string[]
+      //   "ns": [], // string[]
+      //   "extra": [] // string[]
+      // }
+
+      // --- logical ---------------------------------------------------------
+      // {
+      //   "type": "logical", // "logical"
+      //   "mode": "and", // "and" | "or"
+      //   "rules": [], // DnsRule[]
+      //   "invert": false,
+      //
+      //   "action": "route",
+      //   "server": "local",
+      //   "strategy": "",
+      //   "disable_cache": false,
+      //   "rewrite_ttl": null,
+      //   "client_subnet": null
+      // }
+    ],
+
+    "final": "", // string：默认 DNS server tag；空字符串使用第一个 server
+    "strategy": "", // "" | "prefer_ipv4" | "prefer_ipv6" | "ipv4_only" | "ipv6_only"
+    "disable_cache": false, // boolean
+    "disable_expire": false, // boolean
+    "independent_cache": false, // boolean
+    "cache_capacity": 0, // number：<1024 将被忽略
+    "reverse_mapping": false, // boolean
+    "client_subnet": "" // string：默认 EDNS0 subnet（可被 rules/servers 覆盖）
+    // `dns.fakeip`（legacy fake-ip）已在 sing-box 1.12.0 标记废弃，未收录
+  },
+
+  "ntp": {
+    "enabled": false, // boolean
+    "server": "time.apple.com", // string：必填（启用时）
+    "server_port": 123, // number：默认 123
+    "interval": "30m" // string：golang Duration
+    // ... Dial Fields
+  },
+
+  "certificate": {
+    "store": "system", // "system" | "mozilla" | "none"
+    "certificate": [], // string[]：PEM 行
+    "certificate_path": [], // string[]：证书文件路径（自动热重载）
+    "certificate_directory_path": [] // string[]：证书目录（自动热重载）
+  },
+
+  "endpoints": [
+    // ---------------------------------------------------------------------
+    // Endpoint（自 1.11.0 起）
+    // ---------------------------------------------------------------------
+
+    // --- wireguard --------------------------------------------------------
+    // {
+    //   "type": "wireguard",
+    //   "tag": "wg-ep",
+    //
+    //   "system": false, // boolean：使用系统接口（需要权限，且不能与现有接口冲突）
+    //   "name": "", // string：system 接口名
+    //   "mtu": 1408, // number：默认 1408
+    //   "address": ["10.0.0.1/32"], // string[]：必填，接口地址段
+    //   "private_key": "", // string：必填，base64
+    //   "listen_port": 10000, // number
+    //   "peers": [
+    //     {
+    //       "address": "127.0.0.1", // string
+    //       "port": 10001, // number
+    //       "public_key": "", // string：必填
+    //       "pre_shared_key": "", // string
+    //       "allowed_ips": ["0.0.0.0/0"], // string[]：必填
+    //       "persistent_keepalive_interval": 0, // number：秒
+    //       "reserved": [0, 0, 0] // number[3]
+    //     }
+    //   ],
+    //   "udp_timeout": "5m", // string：golang Duration
+    //   "workers": 0 // number：默认 CPU 数
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- tailscale --------------------------------------------------------
+    // {
+    //   "type": "tailscale",
+    //   "tag": "ts-ep",
+    //
+    //   "state_directory": "tailscale", // string：默认 tailscale（可用 $HOME/.tailscale）
+    //   "auth_key": "", // string：可选（默认走登录 URL）
+    //   "control_url": "https://controlplane.tailscale.com", // string
+    //   "ephemeral": false, // boolean
+    //   "hostname": "", // string：默认系统 hostname
+    //   "accept_routes": false, // boolean
+    //   "exit_node": "", // string：exit node 名或 IP
+    //   "exit_node_allow_lan_access": false, // boolean
+    //   "advertise_routes": [], // string[]：CIDR
+    //   "advertise_exit_node": false, // boolean
+    //   "udp_timeout": "5m" // string：golang Duration
+    //
+    //   ... // Dial Fields（仅影响 control plane 连接）
+    // }
+  ],
+
+  "inbounds": [
+    // ---------------------------------------------------------------------
+    // Inbound（入站）
+    // ---------------------------------------------------------------------
+
+    // --- direct -----------------------------------------------------------
+    // {
+    //   "type": "direct",
+    //   "tag": "direct-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "network": "udp", // "" | "tcp" | "udp"（空表示 tcp+udp）
+    //   "override_address": "1.0.0.1", // string：覆盖目标地址
+    //   "override_port": 53 // number：覆盖目标端口
+    // }
+
+    // --- mixed ------------------------------------------------------------
+    // {
+    //   "type": "mixed",
+    //   "tag": "mixed-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "username": "admin", "password": "admin" }
+    //   ], // Array<{username: string, password: string}>
+    //   "set_system_proxy": false // boolean（Linux/Android/Windows/macOS）
+    // }
+
+    // --- socks ------------------------------------------------------------
+    // {
+    //   "type": "socks",
+    //   "tag": "socks-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "username": "admin", "password": "admin" }
+    //   ]
+    // }
+
+    // --- http -------------------------------------------------------------
+    // {
+    //   "type": "http",
+    //   "tag": "http-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "username": "admin", "password": "admin" }
+    //   ],
+    //   "tls": {}, // TLS Inbound
+    //   "set_system_proxy": false // boolean（Linux/Android/Windows/macOS）
+    // }
+
+    // --- shadowsocks ------------------------------------------------------
+    // {
+    //   "type": "shadowsocks",
+    //   "tag": "ss-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "method": "2022-blake3-aes-128-gcm", // string：必填
+    //   "password": "base64-or-string", // string：必填（2022 方法推荐 base64）
+    //   "users": [
+    //     { "name": "sekai", "password": "base64" }
+    //   ], // 可选：多用户（2022 方法）
+    //   "destinations": [
+    //     {
+    //       "name": "test",
+    //       "server": "example.com",
+    //       "server_port": 8080,
+    //       "password": "base64"
+    //     }
+    //   ], // 可选：Relay
+    //   "multiplex": {} // Multiplex Inbound
+    // }
+
+    // --- vmess ------------------------------------------------------------
+    // {
+    //   "type": "vmess",
+    //   "tag": "vmess-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "name": "sekai", "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", "alterId": 0 }
+    //   ], // 必填
+    //   "tls": {}, // TLS Inbound
+    //   "multiplex": {}, // Multiplex Inbound
+    //   "transport": {} // V2Ray Transport
+    // }
+
+    // --- trojan -----------------------------------------------------------
+    // {
+    //   "type": "trojan",
+    //   "tag": "trojan-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "name": "sekai", "password": "password" }
+    //   ], // 必填
+    //   "tls": {}, // TLS Inbound
+    //   "fallback": { "server": "127.0.0.1", "server_port": 8080 }, // object
+    //   "fallback_for_alpn": {
+    //     "http/1.1": { "server": "127.0.0.1", "server_port": 8081 }
+    //   }, // Record<string, {server: string, server_port: number}>
+    //   "multiplex": {}, // Multiplex Inbound
+    //   "transport": {} // V2Ray Transport
+    // }
+
+    // --- naive ------------------------------------------------------------
+    // {
+    //   "type": "naive",
+    //   "tag": "naive-in",
+    //
+    //   "network": "udp", // "" | "tcp" | "udp"
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "username": "sekai", "password": "password" }
+    //   ], // 必填
+    //   "tls": {} // TLS Inbound
+    // }
+
+    // --- hysteria ---------------------------------------------------------
+    // {
+    //   "type": "hysteria",
+    //   "tag": "hysteria-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "up": "100 Mbps", // string：必填
+    //   "up_mbps": 100, // number：必填
+    //   "down": "100 Mbps", // string：必填
+    //   "down_mbps": 100, // number：必填
+    //   "obfs": "obfs-password", // string：可选
+    //   "users": [
+    //     { "name": "sekai", "auth": "", "auth_str": "password" }
+    //   ], // 可选
+    //   "recv_window_conn": 0, // number
+    //   "recv_window_client": 0, // number
+    //   "max_conn_client": 0, // number
+    //   "disable_mtu_discovery": false, // boolean
+    //   "tls": {} // TLS Inbound（必填）
+    // }
+
+    // --- shadowtls --------------------------------------------------------
+    // {
+    //   "type": "shadowtls",
+    //   "tag": "st-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "version": 3, // 1 | 2 | 3
+    //   "password": "password", // string：v2 可用
+    //   "users": [{ "name": "sekai", "password": "password" }], // v3 可用
+    //   "handshake": {
+    //     "server": "google.com",
+    //     "server_port": 443
+    //     ... // Dial Fields
+    //   }, // 必填
+    //   "handshake_for_server_name": {
+    //     "example.com": {
+    //       "server": "example.com",
+    //       "server_port": 443
+    //       ... // Dial Fields
+    //     }
+    //   }, // v2/v3 可用
+    //   "strict_mode": false, // boolean：v3 可用
+    //   "wildcard_sni": "" // "off" | "authed" | "all"（v3）
+    // }
+
+    // --- tuic -------------------------------------------------------------
+    // {
+    //   "type": "tuic",
+    //   "tag": "tuic-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "name": "sekai", "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", "password": "hello" }
+    //   ],
+    //   "congestion_control": "cubic", // "cubic" | "new_reno" | "bbr"
+    //   "auth_timeout": "3s", // string：golang Duration
+    //   "zero_rtt_handshake": false, // boolean（不推荐开启）
+    //   "heartbeat": "10s", // string：golang Duration
+    //   "tls": {} // TLS Inbound（必填）
+    // }
+
+    // --- hysteria2 --------------------------------------------------------
+    // {
+    //   "type": "hysteria2",
+    //   "tag": "hy2-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "up_mbps": 100, // number
+    //   "down_mbps": 100, // number
+    //   "obfs": { "type": "salamander", "password": "password" }, // object
+    //   "users": [{ "name": "user", "password": "password" }], // array
+    //   "ignore_client_bandwidth": false, // boolean
+    //   "tls": {}, // TLS Inbound（必填）
+    //   "masquerade": "file:///var/www", // string | object
+    //   "brutal_debug": false // boolean
+    // }
+
+    // --- vless ------------------------------------------------------------
+    // {
+    //   "type": "vless",
+    //   "tag": "vless-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "name": "sekai", "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", "flow": "" }
+    //   ], // 必填
+    //   "tls": {}, // TLS Inbound
+    //   "multiplex": {}, // Multiplex Inbound
+    //   "transport": {} // V2Ray Transport
+    // }
+
+    // --- anytls -----------------------------------------------------------
+    // {
+    //   "type": "anytls",
+    //   "tag": "anytls-in",
+    //
+    //   ... // Listen Fields
+    //
+    //   "users": [
+    //     { "name": "sekai", "password": "password" }
+    //   ], // 必填
+    //   "padding_scheme": [], // string[]：AnyTLS padding scheme
+    //   "tls": {} // TLS Inbound
+    // }
+
+    // --- tun --------------------------------------------------------------
+    // {
+    //   "type": "tun",
+    //   "tag": "tun-in",
+    //
+    //   "interface_name": "tun0", // string
+    //   "address": ["172.18.0.1/30", "fdfe:dcba:9876::1/126"], // string[]
+    //   "mtu": 9000, // number
+    //   "auto_route": true, // boolean
+    //   "iproute2_table_index": 2022, // number（Linux）
+    //   "iproute2_rule_index": 9000, // number（Linux）
+    //   "auto_redirect": true, // boolean（Linux 推荐）
+    //   "auto_redirect_input_mark": "0x2023", // number|string
+    //   "auto_redirect_output_mark": "0x2024", // number|string
+    //   "loopback_address": ["10.7.0.1"], // string[]（1.12+）
+    //   "strict_route": true, // boolean
+    //   "route_address": ["0.0.0.0/1", "128.0.0.0/1", "::/1", "8000::/1"], // string[]
+    //   "route_exclude_address": ["192.168.0.0/16", "fc00::/7"], // string[]
+    //   "route_address_set": ["geoip-cloudflare"], // string[]
+    //   "route_exclude_address_set": ["geoip-cn"], // string[]
+    //   "endpoint_independent_nat": false, // boolean（仅 gvisor stack）
+    //   "udp_timeout": "5m", // string：golang Duration
+    //   "stack": "system", // "system" | "gvisor" | "mixed"
+    //   "include_interface": ["lan0"], // string[]
+    //   "exclude_interface": ["lan1"], // string[]
+    //   "include_uid": [0], // number[]
+    //   "include_uid_range": ["1000:99999"], // string[]
+    //   "exclude_uid": [1000], // number[]
+    //   "exclude_uid_range": ["1000:99999"], // string[]
+    //   "include_android_user": [0, 10], // number[]
+    //   "include_package": ["com.android.chrome"], // string[]
+    //   "exclude_package": ["com.android.captiveportallogin"], // string[]
+    //   "platform": {
+    //     "http_proxy": {
+    //       "enabled": false, // boolean
+    //       "server": "127.0.0.1", // string：必填（enabled 时）
+    //       "server_port": 8080, // number：必填（enabled 时）
+    //       "bypass_domain": [], // string[]
+    //       "match_domain": [] // string[]
+    //     }
+    //   }
+    //
+    //   ... // Listen Fields（tun 也支持一部分通用 inbound 字段）
+    // }
+
+    // --- redirect ---------------------------------------------------------
+    // {
+    //   "type": "redirect",
+    //   "tag": "redirect-in",
+    //
+    //   ... // Listen Fields（Linux/macOS）
+    // }
+
+    // --- tproxy -----------------------------------------------------------
+    // {
+    //   "type": "tproxy",
+    //   "tag": "tproxy-in",
+    //
+    //   ... // Listen Fields（Linux）
+    //
+    //   "network": "udp" // "" | "tcp" | "udp"
+    // }
+  ],
+
+  "outbounds": [
+    // ---------------------------------------------------------------------
+    // Outbound（出站）
+    // - 已剔除：wireguard outbound（1.11 起废弃，建议迁移到 endpoint）
+    // - 已剔除：dns outbound（legacy special outbound，1.11 起废弃）
+    // ---------------------------------------------------------------------
+
+    // --- direct -----------------------------------------------------------
+    // {
+    //   "type": "direct",
+    //   "tag": "direct"
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- block ------------------------------------------------------------
+    // {
+    //   "type": "block",
+    //   "tag": "block"
+    // }
+
+    // --- socks ------------------------------------------------------------
+    // {
+    //   "type": "socks",
+    //   "tag": "socks-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "version": "5", // "4" | "4a" | "5"
+    //   "username": "sekai", // string
+    //   "password": "admin", // string
+    //   "network": "udp", // "" | "tcp" | "udp"
+    //   "udp_over_tcp": false // boolean | { enabled: true, version?: 1|2 }
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- http -------------------------------------------------------------
+    // {
+    //   "type": "http",
+    //   "tag": "http-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "username": "sekai", // string
+    //   "password": "admin", // string
+    //   "path": "", // string
+    //   "headers": {}, // Record<string, string>
+    //   "tls": {} // TLS Outbound
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- shadowsocks ------------------------------------------------------
+    // {
+    //   "type": "shadowsocks",
+    //   "tag": "ss-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "method": "2022-blake3-aes-128-gcm", // string：必填
+    //   "password": "base64-or-string", // string：必填
+    //   "plugin": "", // string：仅支持 obfs-local / v2ray-plugin
+    //   "plugin_opts": "", // string
+    //   "network": "udp", // "" | "tcp" | "udp"
+    //   "udp_over_tcp": false, // boolean | { enabled: true, version?: 1|2 }
+    //   "multiplex": {} // Multiplex Outbound
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- vmess ------------------------------------------------------------
+    // {
+    //   "type": "vmess",
+    //   "tag": "vmess-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", // string：必填
+    //   "security": "auto", // "auto" | "none" | "zero" | "aes-128-gcm" | "chacha20-poly1305" | "aes-128-ctr"(legacy)
+    //   "alter_id": 0, // number
+    //   "global_padding": false, // boolean
+    //   "authenticated_length": true, // boolean
+    //   "network": "tcp", // "" | "tcp" | "udp"
+    //   "tls": {}, // TLS Outbound
+    //   "packet_encoding": "", // "" | "packetaddr" | "xudp"
+    //   "transport": {}, // V2Ray Transport
+    //   "multiplex": {} // Multiplex Outbound
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- trojan -----------------------------------------------------------
+    // {
+    //   "type": "trojan",
+    //   "tag": "trojan-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "password": "password", // string：必填
+    //   "network": "tcp", // "" | "tcp" | "udp"
+    //   "tls": {}, // TLS Outbound
+    //   "multiplex": {}, // Multiplex Outbound
+    //   "transport": {} // V2Ray Transport
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- hysteria ---------------------------------------------------------
+    // {
+    //   "type": "hysteria",
+    //   "tag": "hy-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填（若未使用 server_ports）
+    //   "server_ports": ["2080:3000"], // string[]：端口范围
+    //   "hop_interval": "30s", // string：端口跳跃间隔
+    //   "up": "100 Mbps", // string：必填
+    //   "up_mbps": 100, // number：必填
+    //   "down": "100 Mbps", // string：必填
+    //   "down_mbps": 100, // number：必填
+    //   "obfs": "obfs-password", // string
+    //   "auth": "", // string：base64
+    //   "auth_str": "password", // string
+    //   "recv_window_conn": 0, // number
+    //   "recv_window": 0, // number
+    //   "disable_mtu_discovery": false, // boolean
+    //   "network": "tcp", // "" | "tcp" | "udp"
+    //   "tls": {} // TLS Outbound（必填）
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- vless ------------------------------------------------------------
+    // {
+    //   "type": "vless",
+    //   "tag": "vless-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", // string：必填
+    //   "flow": "xtls-rprx-vision", // string
+    //   "network": "tcp", // "" | "tcp" | "udp"
+    //   "tls": {}, // TLS Outbound
+    //   "packet_encoding": "", // "" | "packetaddr" | "xudp"（默认 xudp）
+    //   "multiplex": {}, // Multiplex Outbound
+    //   "transport": {} // V2Ray Transport
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- shadowtls --------------------------------------------------------
+    // {
+    //   "type": "shadowtls",
+    //   "tag": "st-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "version": 3, // 1 | 2 | 3
+    //   "password": "password", // string：v2/v3 可用
+    //   "tls": {} // TLS Outbound（必填）
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- tuic -------------------------------------------------------------
+    // {
+    //   "type": "tuic",
+    //   "tag": "tuic-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", // string：必填
+    //   "password": "hello", // string：必填
+    //   "congestion_control": "cubic", // "cubic" | "new_reno" | "bbr"
+    //   "udp_relay_mode": "native", // "native" | "quic"
+    //   "udp_over_stream": false, // boolean（与 udp_relay_mode 冲突）
+    //   "zero_rtt_handshake": false, // boolean
+    //   "heartbeat": "10s", // string
+    //   "network": "tcp", // "" | "tcp" | "udp"
+    //   "tls": {} // TLS Outbound（必填）
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- hysteria2 --------------------------------------------------------
+    // {
+    //   "type": "hysteria2",
+    //   "tag": "hy2-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填（若未使用 server_ports）
+    //   "server_ports": ["2080:3000"], // string[]
+    //   "hop_interval": "30s", // string
+    //   "up_mbps": 100, // number
+    //   "down_mbps": 100, // number
+    //   "obfs": { "type": "salamander", "password": "password" }, // object
+    //   "password": "password", // string：认证密码
+    //   "network": "tcp", // "" | "tcp" | "udp"
+    //   "tls": {}, // TLS Outbound（必填）
+    //   "brutal_debug": false // boolean
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- anytls -----------------------------------------------------------
+    // {
+    //   "type": "anytls",
+    //   "tag": "anytls-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 1080, // number：必填
+    //   "password": "password", // string：必填
+    //   "idle_session_check_interval": "30s", // string
+    //   "idle_session_timeout": "30s", // string
+    //   "min_idle_session": 5, // number
+    //   "tls": {} // TLS Outbound（必填）
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- tor --------------------------------------------------------------
+    // {
+    //   "type": "tor",
+    //   "tag": "tor-out",
+    //
+    //   "executable_path": "/usr/bin/tor", // string
+    //   "extra_args": [], // string[]
+    //   "data_directory": "$HOME/.cache/tor", // string
+    //   "torrc": { "ClientOnly": 1 } // Record<string, unknown>
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- ssh --------------------------------------------------------------
+    // {
+    //   "type": "ssh",
+    //   "tag": "ssh-out",
+    //
+    //   "server": "127.0.0.1", // string：必填
+    //   "server_port": 22, // number
+    //   "user": "root", // string
+    //   "password": "admin", // string
+    //   "private_key": "", // string
+    //   "private_key_path": "$HOME/.ssh/id_rsa", // string
+    //   "private_key_passphrase": "", // string
+    //   "host_key": ["ecdsa-sha2-nistp256 AAAAE2..."], // string[]
+    //   "host_key_algorithms": [], // string[]
+    //   "client_version": "SSH-2.0-OpenSSH_7.4p1" // string
+    //
+    //   ... // Dial Fields
+    // }
+
+    // --- selector ---------------------------------------------------------
+    // {
+    //   "type": "selector",
+    //   "tag": "select",
+    //
+    //   "outbounds": ["proxy-a", "proxy-b"], // string[]：必填
+    //   "default": "proxy-b", // string
+    //   "interrupt_exist_connections": false // boolean
+    // }
+
+    // --- urltest ----------------------------------------------------------
+    // {
+    //   "type": "urltest",
+    //   "tag": "auto",
+    //
+    //   "outbounds": ["proxy-a", "proxy-b"], // string[]：必填
+    //   "url": "https://www.gstatic.com/generate_204", // string
+    //   "interval": "3m", // string：golang Duration
+    //   "tolerance": 50, // number：ms
+    //   "idle_timeout": "30m", // string：golang Duration
+    //   "interrupt_exist_connections": false // boolean
+    // }
+  ],
+
+  "route": {
+    // Route 顶层已移除 geoip/geosite（1.12 起移除），使用 rule_set 替代
+    "rules": [
+      // -------------------------------------------------------------------
+      // Route Rule（匹配字段 + 动作字段位于同一层级）
+      // - default rule：不写 type
+      // - logical rule：type = "logical"
+      // - 需注意：文档中标记 deprecated 的 geosite/geoip 等已剔除
+      // -------------------------------------------------------------------
+
+      // --- route (final) --------------------------------------------------
+      // {
+      //   "inbound": ["mixed-in"], // string[]
+      //   "ip_version": 6, // 4|6
+      //   "network": ["tcp"], // ("tcp"|"udp")[]
+      //   "auth_user": ["usera"], // string[]
+      //   "protocol": ["tls", "http", "quic"], // string[]
+      //   "client": ["chromium"], // string[]
+      //   "domain": ["test.com"], // string[]
+      //   "domain_suffix": [".cn"], // string[]
+      //   "domain_keyword": ["test"], // string[]
+      //   "domain_regex": ["^stun\\\\..+"], // string[]
+      //   "source_ip_cidr": ["10.0.0.0/24"], // string[]
+      //   "source_ip_is_private": false, // boolean
+      //   "ip_cidr": ["1.1.1.1/32"], // string[]
+      //   "ip_is_private": false, // boolean
+      //   "source_port": [12345], // number[]
+      //   "source_port_range": ["1000:2000"], // string[]
+      //   "port": [80, 443], // number[]
+      //   "port_range": ["1000:2000"], // string[]
+      //   "process_name": ["curl"], // string[]
+      //   "process_path": ["/usr/bin/curl"], // string[]
+      //   "process_path_regex": ["^/usr/bin/.+"], // string[]
+      //   "package_name": ["com.termux"], // string[]
+      //   "user": ["sekai"], // string[]
+      //   "user_id": [1000], // number[]
+      //   "clash_mode": "direct", // string
+      //   "network_type": ["wifi"], // string[]
+      //   "network_is_expensive": false, // boolean
+      //   "network_is_constrained": false, // boolean
+      //   "wifi_ssid": ["My WIFI"], // string[]
+      //   "wifi_bssid": ["00:00:00:00:00:00"], // string[]
+      //   "rule_set": ["geoip-cn"], // string[]
+      //   "rule_set_ip_cidr_match_source": false, // boolean
+      //   "invert": false, // boolean
+      //
+      //   "action": "route", // "route"（默认）
+      //   "outbound": "direct", // string：必填（目标 outbound tag）
+      //
+      //   // route-options fields（可选）
+      //   "override_address": "", // string
+      //   "override_port": 0, // number
+      //   "network_strategy": "", // "" | "default" | "hybrid" | "fallback"
+      //   "network_type": [], // string[]：["wifi","cellular","ethernet","other"]
+      //   "fallback_network_type": [], // string[]：回退网络类型
+      //   "fallback_delay": "", // string：golang Duration
+      //   "udp_disable_domain_unmapping": false, // boolean
+      //   "udp_connect": false, // boolean
+      //   "udp_timeout": "", // string：golang Duration
+      //   "tls_fragment": false, // boolean
+      //   "tls_fragment_fallback_delay": "", // string：golang Duration
+      //   "tls_record_fragment": "" // string：TLS record fragmentation（1.12+）
+      // }
+
+      // --- reject (final) -------------------------------------------------
+      // {
+      //   "domain_suffix": [".example.com"],
+      //
+      //   "action": "reject",
+      //   "method": "default", // "default" | "drop"
+      //   "no_drop": false // boolean
+      // }
+
+      // --- hijack-dns (final) ---------------------------------------------
+      // {
+      //   "port": [53],
+      //   "action": "hijack-dns"
+      // }
+
+      // --- route-options (non-final) --------------------------------------
+      // {
+      //   "domain_suffix": [".example.com"],
+      //   "action": "route-options",
+      //   "override_address": "",
+      //   "override_port": 0,
+      //   "network_strategy": "",
+      //   "network_type": [],
+      //   "fallback_network_type": [],
+      //   "fallback_delay": "",
+      //   "udp_disable_domain_unmapping": false,
+      //   "udp_connect": false,
+      //   "udp_timeout": "",
+      //   "tls_fragment": false,
+      //   "tls_fragment_fallback_delay": "",
+      //   "tls_record_fragment": ""
+      // }
+
+      // --- sniff (non-final) ----------------------------------------------
+      // {
+      //   "domain_suffix": [".example.com"],
+      //   "action": "sniff",
+      //   "sniffer": [], // string[]：默认启用全部
+      //   "timeout": "300ms" // string：golang Duration
+      // }
+
+      // --- resolve (non-final) --------------------------------------------
+      // {
+      //   "domain_suffix": [".example.com"],
+      //   "action": "resolve",
+      //   "server": "", // string：DNS server tag（可选）
+      //   "strategy": "", // "" | "prefer_ipv4" | "prefer_ipv6" | "ipv4_only" | "ipv6_only"
+      //   "disable_cache": false, // boolean（1.12+）
+      //   "rewrite_ttl": null, // number|null（1.12+）
+      //   "client_subnet": null // string|null（1.12+）
+      // }
+
+      // --- logical ---------------------------------------------------------
+      // {
+      //   "type": "logical",
+      //   "mode": "and", // "and" | "or"
+      //   "rules": [], // RouteRule[]
+      //   "invert": false,
+      //
+      //   "action": "route",
+      //   "outbound": "direct"
+      // }
+    ],
+
+    "rule_set": [
+      // -------------------------------------------------------------------
+      // Rule-set（路由规则集）
+      // -------------------------------------------------------------------
+
+      // --- inline (1.10+) -------------------------------------------------
+      // {
+      //   "type": "inline", // "inline"（可选，省略时也表示 inline）
+      //   "tag": "inline-set", // string：必填
+      //   "rules": [
+      //     // Headless Rule（见 singbox-config-docs/rule-set/headless-rule.md）
+      //     {
+      //       "domain_suffix": [".example.com"],
+      //       "invert": false
+      //     }
+      //   ]
+      // }
+
+      // --- local ----------------------------------------------------------
+      // {
+      //   "type": "local",
+      //   "tag": "local-set",
+      //   "format": "binary", // "source" | "binary"
+      //   "path": "geoip-cn.srs" // string：必填
+      // }
+
+      // --- remote ---------------------------------------------------------
+      // {
+      //   "type": "remote",
+      //   "tag": "remote-set",
+      //   "format": "binary", // "source" | "binary"
+      //   "url": "https://example.com/ruleset.srs", // string：必填
+      //   "download_detour": "direct", // string：outbound tag
+      //   "update_interval": "1d" // string：golang Duration
+      // }
+    ],
+
+    "final": "", // string：默认 outbound tag；空字符串使用第一个可用于对应协议的 outbound
+    "auto_detect_interface": false, // boolean（Linux/Windows/macOS）
+    "override_android_vpn": false, // boolean（Android）
+    "default_interface": "", // string
+    "default_mark": 0, // number|string
+    "default_domain_resolver": "", // string | DomainResolverOptions（见 Dial Fields）
+    "default_network_strategy": "", // "" | "default" | "hybrid" | "fallback"
+    "default_network_type": [], // string[]：wifi/cellular/ethernet/other
+    "default_fallback_network_type": [], // string[]
+    "default_fallback_delay": "" // string：golang Duration
+  },
+
+  "services": [
+    // ---------------------------------------------------------------------
+    // Service（自 1.12.0 起）
+    // ---------------------------------------------------------------------
+
+    // --- derp -------------------------------------------------------------
+    // {
+    //   "type": "derp",
+    //
+    //   ... // Listen Fields
+    //
+    //   "tls": {}, // TLS Inbound
+    //   "config_path": "derper.key", // string：必填
+    //   "verify_client_endpoint": [], // string[]：Tailscale endpoint tags
+    //   "verify_client_url": [
+    //     // string 也可以写成对象 { "url": "..." }
+    //     {
+    //       "url": "https://my-headscale.com/verify"
+    //       ... // Dial Fields
+    //     }
+    //   ],
+    //   "home": "", // string："blank" 或 URL
+    //   "mesh_with": [
+    //     {
+    //       "server": "1.2.3.4", // string：必填
+    //       "server_port": 443, // number：必填
+    //       "host": "", // string
+    //       "tls": {} // TLS Outbound
+    //
+    //       ... // Dial Fields
+    //     }
+    //   ],
+    //   "mesh_psk": "", // string
+    //   "mesh_psk_file": "", // string
+    //   "stun": {
+    //     "enabled": true
+    //     ... // Listen Fields
+    //   } // 或直接写成数字端口：3478
+    // }
+
+    // --- resolved ---------------------------------------------------------
+    // {
+    //   "type": "resolved",
+    //
+    //   ... // Listen Fields（listen 默认 127.0.0.53:53）
+    // }
+
+    // --- ssm-api ----------------------------------------------------------
+    // {
+    //   "type": "ssm-api",
+    //
+    //   ... // Listen Fields
+    //
+    //   "servers": { "/": "ss-in" }, // Record<string, string>：HTTP endpoint -> shadowsocks inbound tag
+    //   "cache_path": "", // string：可选
+    //   "tls": {} // TLS Inbound
+    // }
+  ],
+
+  "experimental": {
+    "cache_file": {
+      "enabled": false, // boolean
+      "path": "cache.db", // string
+      "cache_id": "", // string
+      "store_fakeip": false, // boolean
+      "store_rdrc": false, // boolean
+      "rdrc_timeout": "7d" // string：golang Duration
+    },
+
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090", // string：Clash API 监听地址；空表示禁用
+      "external_ui": "", // string：UI 静态目录（相对配置目录或绝对路径）
+      "external_ui_download_url": "", // string：ZIP 下载地址（默认 Yacd-meta）
+      "external_ui_download_detour": "", // string：下载 UI 的 outbound tag
+      "secret": "", // string：强烈建议设置
+      "default_mode": "Rule", // string
+      "access_control_allow_origin": [], // string[]：CORS origins（默认 "*"）
+      "access_control_allow_private_network": false // boolean
+    },
+
+    "v2ray_api": {
+      "listen": "127.0.0.1:8080", // string：gRPC API 监听地址；空表示禁用
+      "stats": {
+        "enabled": true, // boolean
+        "inbounds": ["socks-in"], // string[]
+        "outbounds": ["proxy", "direct"], // string[]
+        "users": ["sekai"] // string[]
+      }
+    }
+  }
+}
+
+// =============================================================================
+// 通用字段模板（可复制到各处的 `... // Dial Fields` / `... // Listen Fields` 等位置）
+// =============================================================================
+
+/* Listen Fields (shared/listen.md)
+{
+  "listen": "127.0.0.1",          // string：必填
+  "listen_port": 1080,            // number
+  "bind_interface": "",           // string（1.12+）
+  "routing_mark": 0,              // number|string（Linux，1.12+）
+  "reuse_addr": false,            // boolean（1.12+）
+  "netns": "",                    // string（Linux，1.12+）
+  "tcp_fast_open": false,         // boolean
+  "tcp_multi_path": false,        // boolean
+  "udp_fragment": false,          // boolean
+  "udp_timeout": "5m",            // string：golang Duration
+  "detour": ""                    // string：inbound tag
+}
+*/
+
+/* Dial Fields (shared/dial.md)
+{
+  "detour": "",                   // string：上游 outbound tag；设置后其他拨号字段忽略
+  "bind_interface": "",           // string
+  "inet4_bind_address": "",       // string：IPv4
+  "inet6_bind_address": "",       // string：IPv6
+  "routing_mark": 0,              // number|string（Linux）
+  "reuse_addr": false,            // boolean
+  "netns": "",                    // string（Linux，1.12+）
+  "connect_timeout": "5s",        // string：golang Duration
+  "tcp_fast_open": false,         // boolean
+  "tcp_multi_path": false,        // boolean
+  "udp_fragment": false,          // boolean
+
+  "domain_resolver": "local",     // string | DomainResolverOptions
+  "network_strategy": "",         // "" | "default" | "hybrid" | "fallback"
+  "network_type": [],             // ("wifi"|"cellular"|"ethernet"|"other")[]
+  "fallback_network_type": [],    // 同上
+  "fallback_delay": "300ms"       // string：golang Duration
+}
+*/
+
+/* DomainResolverOptions（Dial Fields: domain_resolver / route.default_domain_resolver）
+{
+  "server": "local",              // string：DNS server tag（必填）
+  "strategy": "",                 // "" | "prefer_ipv4" | "prefer_ipv6" | "ipv4_only" | "ipv6_only"
+  "disable_cache": false,         // boolean
+  "rewrite_ttl": null,            // number|null
+  "client_subnet": null           // string|null
+}
+*/
+
+/* TLS (shared/tls.md)
+Inbound:
+{
+  "enabled": true,                // boolean
+  "server_name": "",              // string
+  "alpn": [],                     // string[]
+  "min_version": "",              // "" | "1.0" | "1.1" | "1.2" | "1.3"
+  "max_version": "",              // 同上
+  "cipher_suites": [],            // string[]
+  "certificate": [],              // string[]：PEM 行
+  "certificate_path": "",         // string：证书文件
+  "key": [],                      // string[]：PEM 行（server only）
+  "key_path": "",                 // string：私钥文件（server only）
+  "acme": {
+    "domain": [],                 // string[]：域名
+    "data_directory": "",         // string
+    "default_server_name": "",    // string
+    "email": "",                  // string
+    "provider": "",               // string
+    "disable_http_challenge": false,         // boolean
+    "disable_tls_alpn_challenge": false,     // boolean
+    "alternative_http_port": 0,              // number
+    "alternative_tls_port": 0,               // number
+    "external_account": { "key_id": "", "mac_key": "" }, // object
+    "dns01_challenge": {}         // DNS01Challenge（见下方）
+  },
+  "ech": {
+    "enabled": false,             // boolean
+    "key": [],                    // string[]：PEM 行
+    "key_path": ""                // string
+  },
+  "reality": {
+    "enabled": false,             // boolean
+    "handshake": {
+      "server": "google.com",     // string
+      "server_port": 443          // number
+      ... // Dial Fields
+    },
+    "private_key": "",            // string
+    "short_id": ["0123456789abcdef"], // string[]
+    "max_time_difference": "1m"   // string：golang Duration
+  }
+}
+
+Outbound:
+{
+  "enabled": true,                // boolean
+  "disable_sni": false,           // boolean
+  "server_name": "",              // string
+  "insecure": false,              // boolean
+  "alpn": [],                     // string[]
+  "min_version": "",              // string
+  "max_version": "",              // string
+  "cipher_suites": [],            // string[]
+  "certificate": "",              // string：PEM（用于信任链）
+  "certificate_path": "",         // string：PEM 文件
+  "fragment": false,              // boolean（1.12+）
+  "fragment_fallback_delay": "",  // string：golang Duration（1.12+）
+  "record_fragment": false,       // boolean（1.12+）
+  "ech": {
+    "enabled": false,             // boolean
+    "config": [],                 // string[]
+    "config_path": ""             // string
+  },
+  "utls": {
+    "enabled": false,             // boolean
+    "fingerprint": ""             // string
+  },
+  "reality": {
+    "enabled": false,             // boolean
+    "public_key": "",             // string
+    "short_id": ""                // string
+  }
+}
+*/
+
+/* DNS01Challenge (shared/dns01_challenge.md)
+{
+  "provider": "cloudflare",       // "alidns" | "cloudflare"
+
+  // Alibaba Cloud DNS
+  "access_key_id": "",
+  "access_key_secret": "",
+  "region_id": "",
+
+  // Cloudflare
+  "api_token": ""
+}
+*/
+
+/* Multiplex (shared/multiplex.md)
+Inbound:
+{
+  "enabled": true,                // boolean
+  "padding": false,               // boolean
+  "brutal": {}                    // TCPBrutal
+}
+
+Outbound:
+{
+  "enabled": true,                // boolean
+  "protocol": "h2mux",            // "smux" | "yamux" | "h2mux"
+  "max_connections": 4,           // number
+  "min_streams": 4,               // number
+  "max_streams": 0,               // number
+  "padding": false,               // boolean
+  "brutal": {}                    // TCPBrutal
+}
+*/
+
+/* TCPBrutal (shared/tcp-brutal.md)
+{
+  "enabled": true,                // boolean
+  "up_mbps": 100,                 // number：必填
+  "down_mbps": 100                // number：必填
+}
+*/
+
+/* UDPOverTCP (shared/udp-over-tcp.md)
+{
+  "enabled": true,                // boolean
+  "version": 2                    // 1 | 2
+}
+
+// When `version` is not specified, can be simplified to boolean:
+// "udp_over_tcp": true
+*/
+
+/* V2Ray Transport (shared/v2ray-transport.md)
+{
+  "type": "http",                 // "http" | "ws" | "quic" | "grpc" | "httpupgrade"
+
+  // http
+  "host": [],                     // string[]
+  "path": "",                     // string
+  "method": "",                   // string
+  "headers": {},                  // Record<string, string>
+  "idle_timeout": "15s",          // string
+  "ping_timeout": "15s",          // string
+
+  // ws
+  "max_early_data": 0,            // number
+  "early_data_header_name": "",   // string
+
+  // grpc
+  "service_name": "TunService",   // string
+  "permit_without_stream": false, // boolean
+
+  // httpupgrade
+  "host": ""                      // string（httpupgrade）
+}
+*/

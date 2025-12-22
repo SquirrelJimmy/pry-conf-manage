@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sing-box.config.template.schema.json",
+  "title": "sing-box 模板 Schema（基于当前版本）",
+  "description": "基于本仓库 sing-box.config.schema.json：保持主结构一致，但顶层 outbounds 使用模板扩展（selector/urltest/direct + filter），用于 UI 表单渲染与编辑模板。",
+  "type": "object",
+  "properties": {
+    "log": { "$ref": "./sing-box.config.schema.json#/$defs/Log" },
+    "dns": { "$ref": "./sing-box.config.schema.json#/$defs/DNS" },
+    "ntp": { "$ref": "./sing-box.config.schema.json#/$defs/NTP" },
+    "certificate": { "$ref": "./sing-box.config.schema.json#/$defs/Certificate" },
+    "endpoints": {
+      "type": "array",
+      "items": { "$ref": "./sing-box.config.schema.json#/$defs/Endpoint" },
+      "default": []
+    },
+    "inbounds": {
+      "type": "array",
+      "items": { "$ref": "./sing-box.config.schema.json#/$defs/Inbound" },
+      "default": []
+    },
+    "outbounds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TemplateOutbound" },
+      "default": []
+    },
+    "route": { "$ref": "./sing-box.config.schema.json#/$defs/Route" },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "./sing-box.config.schema.json#/$defs/Service" },
+      "default": []
+    },
+    "experimental": { "$ref": "./sing-box.config.schema.json#/$defs/Experimental" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "TemplateOutbound": {
+      "title": "Template Outbound",
+      "oneOf": [
+        { "$ref": "#/$defs/TemplateOutboundDirect" },
+        { "$ref": "#/$defs/TemplateOutboundSelector" },
+        { "$ref": "#/$defs/TemplateOutboundURLTest" }
+      ]
+    },
+
+    "TemplateOutboundBase": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["direct", "selector", "urltest"] },
+        "tag": { "type": "string" }
+      },
+      "required": ["type", "tag"]
+    },
+
+    "TemplateOutboundFilterAction": {
+      "type": "string",
+      "enum": ["include", "exclude"]
+    },
+
+    "TemplateOutboundFilterMode": {
+      "type": "string",
+      "enum": ["regex", "keyword"]
+    },
+
+    "TemplateOutboundFilterRule": {
+      "type": "object",
+      "properties": {
+        "action": { "$ref": "#/$defs/TemplateOutboundFilterAction" },
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "for": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "mode": {
+          "$ref": "#/$defs/TemplateOutboundFilterMode",
+          "default": "regex"
+        },
+        "ignore_case": { "type": "boolean", "default": true }
+      },
+      "required": ["action", "keywords"],
+      "additionalProperties": false
+    },
+
+    "TemplateOutboundFilter": {
+      "title": "Template Outbound Filter",
+      "anyOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/TemplateOutboundFilterRule" }
+            ]
+          },
+          "default": []
+        }
+      ]
+    },
+
+    "TemplateOutboundDirect": {
+      "title": "Outbound: direct (template)",
+      "allOf": [
+        { "$ref": "#/$defs/TemplateOutboundBase" },
+        { "type": "object", "properties": { "type": { "const": "direct" } } }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "TemplateOutboundSelector": {
+      "title": "Outbound: selector (template)",
+      "allOf": [
+        { "$ref": "#/$defs/TemplateOutboundBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "selector" },
+            "outbounds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "default": { "type": "string" },
+            "interrupt_exist_connections": {
+              "type": "boolean",
+              "default": false
+            },
+            "filter": { "$ref": "#/$defs/TemplateOutboundFilter" }
+          },
+          "required": ["outbounds"]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+
+    "TemplateOutboundURLTest": {
+      "title": "Outbound: urltest (template)",
+      "allOf": [
+        { "$ref": "#/$defs/TemplateOutboundBase" },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "urltest" },
+            "outbounds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "url": { "type": "string" },
+            "interval": { "$ref": "./sing-box.config.schema.json#/$defs/Duration" },
+            "tolerance": { "type": "integer", "minimum": 0 },
+            "idle_timeout": {
+              "$ref": "./sing-box.config.schema.json#/$defs/Duration"
+            },
+            "interrupt_exist_connections": {
+              "type": "boolean",
+              "default": false
+            },
+            "filter": { "$ref": "#/$defs/TemplateOutboundFilter" }
+          },
+          "required": ["outbounds"]
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

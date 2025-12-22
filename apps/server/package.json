@@ -1,0 +1,38 @@
+{
+  "name": "@pry/server",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ./scripts/ensure-better-sqlite3.mjs && nest start --watch",
+    "build": "nest build",
+    "start": "node ./scripts/ensure-better-sqlite3.mjs && node dist/main.js",
+    "lint": "echo \"no lint\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma": "XDG_CACHE_HOME=./.cache prisma",
+    "prisma:generate": "XDG_CACHE_HOME=./.cache prisma generate",
+    "prisma:migrate": "XDG_CACHE_HOME=./.cache prisma migrate dev --name init",
+    "prisma:studio": "XDG_CACHE_HOME=./.cache prisma studio"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@prisma/adapter-better-sqlite3": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "better-sqlite3": "^12.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/node": "^22.0.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "dotenv": "^16.4.5",
+    "prisma": "^7.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.0"
+  }
+}

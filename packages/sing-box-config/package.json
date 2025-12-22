@@ -1,0 +1,22 @@
+{
+  "name": "@pry/sing-box-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared sing-box JSON schemas/templates for web & server",
+  "main": "./index.cjs",
+  "sideEffects": false,
+  "exports": {
+    ".": "./index.cjs",
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "schemas",
+    "index.cjs"
+  ],
+  "scripts": {
+    "dev": "echo \"no dev\"",
+    "build": "echo \"no build\"",
+    "lint": "echo \"no lint\"",
+    "typecheck": "echo \"no typecheck\""
+  }
+}

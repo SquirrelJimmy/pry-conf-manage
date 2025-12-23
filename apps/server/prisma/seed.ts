@@ -1,22 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { randomBytes, scrypt as scryptCallback } from 'node:crypto';
 import path from 'node:path';
-import { promisify } from 'node:util';
 
 import 'dotenv/config';
 
-const scrypt = promisify(scryptCallback);
+import { hashPassword } from '../src/auth/password';
 
 function ensureBetterSqlite3() {
   const script = path.join(__dirname, '..', 'scripts', 'ensure-better-sqlite3.mjs');
   const res = spawnSync(process.execPath, [script], { stdio: 'inherit' });
   if (res.status !== 0) process.exit(res.status ?? 1);
-}
-
-async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString('hex');
-  const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
-  return `scrypt$${salt}$${derivedKey.toString('hex')}`;
 }
 
 async function main() {

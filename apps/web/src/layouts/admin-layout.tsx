@@ -1,10 +1,13 @@
 import {
   DashboardOutlined,
+  DesktopOutlined,
   GlobalOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MoonOutlined,
   SettingOutlined,
   UserOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import {
@@ -15,13 +18,14 @@ import {
   Layout,
   Menu,
   Space,
-  Switch,
+  Tooltip,
   Typography,
   theme,
 } from 'antd';
 import { useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAppPreferencesStore } from '../stores/use-app-preferences-store';
+import { useAuthStore } from '../stores/use-auth-store';
 
 type AppLocale = 'zh-CN' | 'en-US';
 
@@ -122,10 +126,13 @@ export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const authUser = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
   const collapsed = useAppPreferencesStore((s) => s.siderCollapsed);
   const setCollapsed = useAppPreferencesStore((s) => s.setSiderCollapsed);
   const themeMode = useAppPreferencesStore((s) => s.themeMode);
-  const toggleThemeMode = useAppPreferencesStore((s) => s.toggleThemeMode);
+  const cycleThemeMode = useAppPreferencesStore((s) => s.cycleThemeMode);
   const locale = useAppPreferencesStore((s) => s.locale);
   const setLocale = useAppPreferencesStore((s) => s.setLocale);
 
@@ -168,8 +175,8 @@ export function AdminLayout() {
     ],
     onClick: ({ key }) => {
       if (key === 'logout') {
-        // 预留：后续接入真实登录态
-        navigate('/dashboard/analysis');
+        logout();
+        navigate('/login', { replace: true });
       }
     },
   };
@@ -216,7 +223,7 @@ export function AdminLayout() {
           {!collapsed ? (
             <div style={{ lineHeight: 1.1 }}>
               <Typography.Text style={{ fontWeight: 700 }}>
-                pry-conf-manage
+                {locale === 'zh-CN' ? '机场配件管理' : 'pry-conf-manage'}
               </Typography.Text>
               <div>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -261,17 +268,27 @@ export function AdminLayout() {
           <div style={{ flex: 1 }} />
 
           <Space size={12} align="center">
-            <Space size={6} align="center">
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {locale === 'zh-CN' ? '主题' : 'Theme'}
-              </Typography.Text>
-              <Switch
-                checked={themeMode === 'dark'}
-                onChange={() => toggleThemeMode()}
-                checkedChildren={locale === 'zh-CN' ? '暗' : 'D'}
-                unCheckedChildren={locale === 'zh-CN' ? '亮' : 'L'}
+            <Tooltip
+              title={
+                locale === 'zh-CN'
+                  ? `主题：${themeMode === 'light' ? '亮' : themeMode === 'dark' ? '暗' : '跟随系统'}（点击切换）`
+                  : `Theme: ${themeMode === 'light' ? 'Light' : themeMode === 'dark' ? 'Dark' : 'System'} (click to switch)`
+              }
+            >
+              <Button
+                type="text"
+                onClick={() => cycleThemeMode()}
+                icon={
+                  themeMode === 'light' ? (
+                    <BulbOutlined />
+                  ) : themeMode === 'dark' ? (
+                    <MoonOutlined />
+                  ) : (
+                    <DesktopOutlined />
+                  )
+                }
               />
-            </Space>
+            </Tooltip>
 
             <Dropdown menu={languageMenu} placement="bottomRight" trigger={['click']}>
               <Button type="text" icon={<GlobalOutlined />}>
@@ -282,7 +299,9 @@ export function AdminLayout() {
             <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar size="small" icon={<UserOutlined />} />
-                <Typography.Text>{locale === 'zh-CN' ? '管理员' : 'Admin'}</Typography.Text>
+                <Typography.Text>
+                  {authUser?.displayName || authUser?.username || (locale === 'zh-CN' ? '管理员' : 'Admin')}
+                </Typography.Text>
               </Space>
             </Dropdown>
           </Space>
@@ -295,4 +314,3 @@ export function AdminLayout() {
     </Layout>
   );
 }
-

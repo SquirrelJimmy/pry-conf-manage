@@ -31,6 +31,12 @@ pnpm prisma:generate
 pnpm prisma:migrate
 ```
 
+初始化数据库并播种默认用户（推荐一键）：
+
+```bash
+pnpm db:setup
+```
+
 启动（并行启动 server + web）：
 
 ```bash

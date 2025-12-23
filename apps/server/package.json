@@ -3,15 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "node ./scripts/ensure-better-sqlite3.mjs && nest start --watch",
+    "dev": "nest start --watch",
     "build": "nest build",
-    "start": "node ./scripts/ensure-better-sqlite3.mjs && node dist/main.js",
+    "start": "node dist/main.js",
     "lint": "echo \"no lint\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma": "XDG_CACHE_HOME=./.cache prisma",
     "prisma:generate": "XDG_CACHE_HOME=./.cache prisma generate",
     "prisma:migrate": "XDG_CACHE_HOME=./.cache prisma migrate dev --name init",
-    "prisma:studio": "XDG_CACHE_HOME=./.cache prisma studio"
+    "prisma:studio": "XDG_CACHE_HOME=./.cache prisma studio",
+    "prisma:seed": "node prisma/seed.cjs",
+    "db:seed": "XDG_CACHE_HOME=./.cache prisma db seed"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

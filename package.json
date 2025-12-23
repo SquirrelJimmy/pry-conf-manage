@@ -18,7 +18,8 @@
     "typecheck": "pnpm -r typecheck",
     "prisma:generate": "pnpm -C apps/server prisma generate",
     "prisma:migrate": "pnpm -C apps/server prisma migrate dev --name init",
-    "db:setup": "pnpm prisma:migrate && pnpm prisma:generate",
+    "db:setup": "pnpm prisma:migrate && pnpm prisma:generate && pnpm db:seed",
+    "db:seed": "pnpm -C apps/server db:seed",
     "docs:sing-box": "node scripts/fetch-sing-box-docs.mjs --out .cache/singbox-config-docs",
     "schemas:sync:sing-box": "node scripts/fetch-sing-box-docs.mjs --only-schemas --out .cache/singbox-config-docs --extract-schemas-to packages/sing-box-config/schemas"
   },
